@@ -1707,6 +1707,12 @@ function avgLatency() {
   return Math.round(recent.reduce((s, e) => s + e.latencyMin, 0) / recent.length);
 }
 function curTz() { return Intl.DateTimeFormat().resolvedOptions().timeZone; }
+function ymdLocal(d) {
+  const dt = (d instanceof Date) ? d : new Date(d);
+  return dt.getFullYear() + '-' +
+    String(dt.getMonth() + 1).padStart(2, '0') + '-' +
+    String(dt.getDate()).padStart(2, '0');
+}
 
 // LOCATION
 function getPosition(opts) {
@@ -2673,26 +2679,24 @@ function consistencyScore(entries) {
 // Streak: consecutive nights ending today or yesterday with at least one entry
 function streak() {
   if (!data.entries.length) return 0;
-  // Build a set of YYYY-MM-DD strings using wakeTime (the morning the entry "belongs to")
+  // Build a set of YYYY-MM-DD strings (local) using wakeTime (the morning the entry "belongs to")
   const dates = new Set();
   data.entries.filter(e => e.wakeTime).forEach(e => {
-    const d = new Date(e.wakeTime);
-    dates.add(d.toISOString().slice(0, 10));
+    dates.add(ymdLocal(e.wakeTime));
   });
   if (data.current) {
-    const d = new Date();
-    dates.add(d.toISOString().slice(0, 10));
+    dates.add(ymdLocal(new Date()));
   }
   let count = 0;
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   // Allow streak to start from yesterday if today not yet logged
   let cursor = new Date(today);
-  if (!dates.has(cursor.toISOString().slice(0, 10))) {
+  if (!dates.has(ymdLocal(cursor))) {
     cursor.setDate(cursor.getDate() - 1);
-    if (!dates.has(cursor.toISOString().slice(0, 10))) return 0;
+    if (!dates.has(ymdLocal(cursor))) return 0;
   }
-  while (dates.has(cursor.toISOString().slice(0, 10))) {
+  while (dates.has(ymdLocal(cursor))) {
     count++;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -2772,10 +2776,10 @@ function renderHeatmap() {
   const target = document.getElementById('heatmap');
   const N_DAYS = 84;
   const goalMs = (data.settings.goalMin || 480) * 60000;
-  // Build a map: ymd -> total sleep ms (use wakeTime date)
+  // Build a map: ymd -> total sleep ms (use wakeTime date, in local time)
   const byDay = {};
   data.entries.filter(e => e.wakeTime).forEach(e => {
-    const ymd = new Date(e.wakeTime).toISOString().slice(0, 10);
+    const ymd = ymdLocal(e.wakeTime);
     byDay[ymd] = (byDay[ymd] || 0) + sleepLen(e);
   });
 
@@ -2799,9 +2803,9 @@ function renderHeatmap() {
       cellsHtml += '<div class="heatmap-cell" style="visibility:hidden;"></div>';
       return;
     }
-    const ymd = d.toISOString().slice(0, 10);
+    const ymd = ymdLocal(d);
     const future = d > today;
-    const isToday = ymd === today.toISOString().slice(0, 10);
+    const isToday = ymd === ymdLocal(today);
     const sleep = byDay[ymd] || 0;
     let cls = '';
     if (future) cls = 'future';
@@ -2836,7 +2840,7 @@ function renderHeatmap() {
   target.querySelectorAll('.heatmap-cell[data-ymd]').forEach(cell => {
     cell.addEventListener('click', () => {
       const ymd = cell.dataset.ymd;
-      const found = data.entries.find(e => e.wakeTime && new Date(e.wakeTime).toISOString().slice(0,10) === ymd);
+      const found = data.entries.find(e => e.wakeTime && ymdLocal(e.wakeTime) === ymd);
       if (found) openDetail(found.id);
       else toast('no entry that day');
     });
@@ -2913,7 +2917,7 @@ function checkReminderFire() {
   if (data.current) return; // already in bed
   const min = minutesUntilReminder();
   if (min == null) return;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = ymdLocal(new Date());
   // Fire when within ±2 minutes of target, and not already fired today
   if (Math.abs(min) <= 2 && data.settings.lastReminded !== today) {
     data.settings.lastReminded = today;
