@@ -1292,6 +1292,30 @@ input[type=time] {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Trend sparkline */
+.trend-card {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.trend-head { display: flex; justify-content: space-between; align-items: baseline; }
+.trend-title {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 16px;
+}
+.trend-delta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.trend-delta.up { color: var(--accent-2); }
+.trend-delta.dn { color: #ffa57a; }
+.trend-svg { width: 100%; height: 60px; display: block; }
+
 /* Auto insight cards */
 .insight-card {
   position: relative;
@@ -1408,6 +1432,7 @@ input[type=time] {
     <h1>In<em>sights</em></h1>
     <div class="label section-label" style="margin-top:8px;">Sleep score</div>
     <div id="scoreCard"></div>
+    <div id="trendCard" style="margin-top:14px;"></div>
     <div id="autoInsights" style="margin-top:14px;"></div>
     <div class="label section-label">When you sleep</div>
     <div id="chart"></div>
@@ -1616,7 +1641,15 @@ const DEFAULT_SETTINGS = {
   customTags: [],
   lastReminded: 0,
   tipDismissed: false,
+  milestones: [],
 };
+const MILESTONES = [
+  { n: 1, label: 'first night logged' },
+  { n: 7, label: 'one week of nights' },
+  { n: 30, label: '30 nights · a month' },
+  { n: 100, label: '100 nights' },
+  { n: 365, label: 'a full year' },
+];
 let data = load();
 let editingId = null;
 let liveTimer = null;
@@ -1881,12 +1914,21 @@ function renderHome() {
   const last = data.entries[data.entries.length - 1];
   const target = document.getElementById('lastNight');
   if (sleeping) {
+    const goalMs = (data.settings.goalMin || 480) * 60000;
+    const lat = avgLatency() * 60000;
+    const wakeAt = new Date(new Date(data.current.bedTime).getTime() + goalMs + lat);
+    const remaining = wakeAt.getTime() - Date.now();
+    const wakeStr = wakeAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const goalLine = remaining > 0
+      ? `wake at <em>${wakeStr}</em> for ${fmtDur(goalMs)} · ${fmtDur(remaining)} to go`
+      : `you've passed your <em>${fmtDur(goalMs)}</em> goal`;
     target.innerHTML = `
       <div class="label section-label">In bed since</div>
       <div class="card center tappable" data-detail-id="__current">
         <div class="italic" style="font-size:30px;">${fmtTime(data.current.bedTime, data.current.tz)}</div>
         <div class="label" style="margin-top:6px;">${fmtDate(data.current.bedTime, data.current.tz)}</div>
-        <div class="tap-hint">tap for details</div>
+        <div class="goal-line" style="justify-content:center;margin-top:14px;">${goalLine}</div>
+        <div class="tap-hint">tap for details · adjust bedtime</div>
       </div>
       <button class="discard-link" id="discardCurrent">discard · not asleep yet</button>
     `;
@@ -2009,6 +2051,11 @@ function closeMorning(saveIt) {
     save();
     renderHome();
     vibe(20);
+    checkMilestones();
+  } else if (saveIt === false && morningEntry) {
+    // Skipped, but the entry itself is already saved (created on tap-to-wake).
+    // Still count toward milestones since the night was logged.
+    checkMilestones();
   }
   document.getElementById('morningModal').classList.remove('show');
 }
@@ -2192,6 +2239,7 @@ function saveEdit() {
     data.entries.push(entry);
     data.entries.sort((a,b) => new Date(a.bedTime) - new Date(b.bedTime));
     toast('night added');
+    setTimeout(checkMilestones, 400);
   } else {
     const e = data.entries.find(x => x.id === editingId);
     if (!e) return;
@@ -2228,6 +2276,7 @@ function closeEdit() {
 // INSIGHTS / CHART
 function renderInsights() {
   renderScoreCard();
+  renderTrend();
   renderAutoInsights();
   renderChart();
   renderStats();
@@ -2235,6 +2284,64 @@ function renderInsights() {
   renderHeatmap();
   renderImpact();
   renderReview();
+}
+
+function renderTrend() {
+  const target = document.getElementById('trendCard');
+  if (!target) return;
+  const completed = data.entries.filter(e => e.wakeTime).slice(-21);
+  if (completed.length < 4) { target.innerHTML = ''; return; }
+  const goalMs = (data.settings.goalMin || 480) * 60000;
+  const points = completed.map(e => sleepLen(e));
+  const min = Math.min(...points, goalMs * 0.6);
+  const max = Math.max(...points, goalMs * 1.1);
+  const w = 320, h = 60, pad = 4;
+  const xStep = (w - pad * 2) / Math.max(1, points.length - 1);
+  const yScale = (v) => h - pad - ((v - min) / (max - min)) * (h - pad * 2);
+  const coords = points.map((v, i) => [pad + i * xStep, yScale(v)]);
+  const path = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');
+  const areaPath = path + ` L ${coords[coords.length-1][0].toFixed(1)} ${h - pad} L ${coords[0][0].toFixed(1)} ${h - pad} Z`;
+  const goalY = yScale(goalMs);
+  // Simple linear regression slope
+  const n = points.length;
+  const xs = points.map((_, i) => i);
+  const xMean = xs.reduce((s,x)=>s+x,0)/n;
+  const yMean = points.reduce((s,x)=>s+x,0)/n;
+  const num = xs.reduce((s,_,i) => s + (xs[i]-xMean)*(points[i]-yMean), 0);
+  const den = xs.reduce((s,_,i) => s + (xs[i]-xMean)**2, 0);
+  const slopePerNight = den ? num / den : 0;
+  const totalShift = slopePerNight * (n - 1);
+  let deltaHtml;
+  if (Math.abs(totalShift) < 5 * 60000) {
+    deltaHtml = '<span class="trend-delta">stable</span>';
+  } else {
+    const cls = totalShift > 0 ? 'up' : 'dn';
+    const sign = totalShift > 0 ? '+' : '−';
+    deltaHtml = `<span class="trend-delta ${cls}">${sign}${fmtDur(Math.abs(totalShift))} over ${n} nights</span>`;
+  }
+  target.innerHTML = `
+    <div class="card trend-card">
+      <div class="trend-head">
+        <div class="trend-title">Trend · last <em class="grad" style="font-style:italic;">${n}</em> nights</div>
+        ${deltaHtml}
+      </div>
+      <svg class="trend-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(139,108,255,0.35)"/>
+            <stop offset="100%" stop-color="rgba(139,108,255,0)"/>
+          </linearGradient>
+          <linearGradient id="trendLine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#8b6cff"/><stop offset="100%" stop-color="#b89dff"/>
+          </linearGradient>
+        </defs>
+        ${goalY > 0 && goalY < h ? `<line x1="${pad}" y1="${goalY.toFixed(1)}" x2="${w-pad}" y2="${goalY.toFixed(1)}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="3 4"/>` : ''}
+        <path d="${areaPath}" fill="url(#trendArea)"/>
+        <path d="${path}" fill="none" stroke="url(#trendLine)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${coords[coords.length-1][0].toFixed(1)}" cy="${coords[coords.length-1][1].toFixed(1)}" r="3" fill="#b89dff"/>
+      </svg>
+    </div>
+  `;
 }
 
 function renderAutoInsights() {
@@ -2839,13 +2946,26 @@ function scheduleReminderCheck() {
 
 // TOAST
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, hold) {
   const el = document.getElementById('toast');
   if (!el) return;
   el.textContent = msg;
   el.classList.add('show');
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+  toastTimer = setTimeout(() => el.classList.remove('show'), hold || 1800);
+}
+
+// MILESTONES
+function checkMilestones() {
+  const total = data.entries.filter(e => e.wakeTime).length;
+  const hit = MILESTONES.find(m => m.n === total && !(data.settings.milestones || []).includes(m.n));
+  if (!hit) return;
+  data.settings.milestones = [...(data.settings.milestones || []), hit.n];
+  save();
+  setTimeout(() => {
+    toast(`✦ ${hit.label}`, 3200);
+    vibe([20, 60, 20, 60, 100]);
+  }, 600);
 }
 
 // SETTINGS
