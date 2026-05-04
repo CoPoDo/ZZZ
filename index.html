@@ -1292,6 +1292,70 @@ input[type=time] {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Auto insight cards */
+.insight-card {
+  position: relative;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.insight-card .icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.insight-card .body {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.insight-card .body em {
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-style: italic;
+  font-weight: 500;
+}
+.insight-card.warm { border-color: rgba(255,165,122,0.25); }
+.insight-card.warm .body em { background: linear-gradient(135deg, #ffb37a, #ff9a7a); -webkit-background-clip:text; background-clip:text; }
+
+/* First-time tip */
+.first-tip {
+  text-align: center;
+  margin: 0 auto 18px;
+  padding: 14px 18px;
+  max-width: 360px;
+  background: linear-gradient(135deg, rgba(139,108,255,0.08), rgba(184,157,255,0.04));
+  border: 1px dashed rgba(139,108,255,0.35);
+  border-radius: 14px;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.first-tip em { color: var(--accent-2); font-style: italic; }
+.first-tip-x {
+  display: inline-block;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
 /* Insights pill toggle for goal-related stat */
 .stat .delta {
   font-family: 'JetBrains Mono', monospace;
@@ -1344,6 +1408,7 @@ input[type=time] {
     <h1>In<em>sights</em></h1>
     <div class="label section-label" style="margin-top:8px;">Sleep score</div>
     <div id="scoreCard"></div>
+    <div id="autoInsights" style="margin-top:14px;"></div>
     <div class="label section-label">When you sleep</div>
     <div id="chart"></div>
     <div class="label section-label">Average day</div>
@@ -1550,6 +1615,7 @@ const DEFAULT_SETTINGS = {
   reminderTime: '22:30',
   customTags: [],
   lastReminded: 0,
+  tipDismissed: false,
 };
 let data = load();
 let editingId = null;
@@ -1771,6 +1837,22 @@ function renderHome() {
   else if (total > 0) chips += `<span class="chip muted">log tonight to start a streak</span>`;
   if (total > 0) chips += `<span class="chip muted">${total} night${total === 1 ? '' : 's'} logged</span>`;
   streakEl.innerHTML = chips;
+
+  // First-time onboarding tip (zero entries, tip not yet dismissed)
+  if (!total && !sleeping && !data.settings.tipDismissed) {
+    streakEl.insertAdjacentHTML('afterend',
+      `<div class="first-tip">
+        <div>Hold the button to start a sleep session. <em>Hold again</em> in the morning to wake.</div>
+        <button class="first-tip-x" id="dismissTip">got it</button>
+      </div>`);
+    const x = document.getElementById('dismissTip');
+    if (x) x.addEventListener('click', () => {
+      data.settings.tipDismissed = true;
+      save();
+      renderHome();
+      vibe(8);
+    });
+  }
 
   // Reminder card (only when not sleeping)
   const remEl = document.getElementById('reminderHome');
@@ -2146,12 +2228,108 @@ function closeEdit() {
 // INSIGHTS / CHART
 function renderInsights() {
   renderScoreCard();
+  renderAutoInsights();
   renderChart();
   renderStats();
   renderClockFace();
   renderHeatmap();
   renderImpact();
   renderReview();
+}
+
+function renderAutoInsights() {
+  const target = document.getElementById('autoInsights');
+  if (!target) return;
+  const completed = data.entries.filter(e => e.wakeTime);
+  if (completed.length < 4) { target.innerHTML = ''; return; }
+  const insights = [];
+  const goalMs = (data.settings.goalMin || 480) * 60000;
+
+  // 1) Weekday vs weekend
+  const weekday = completed.filter(e => { const d = new Date(e.wakeTime).getDay(); return d >= 1 && d <= 5; });
+  const weekend = completed.filter(e => { const d = new Date(e.wakeTime).getDay(); return d === 0 || d === 6; });
+  if (weekday.length >= 3 && weekend.length >= 2) {
+    const wdAvg = weekday.reduce((s,e) => s + sleepLen(e), 0) / weekday.length;
+    const weAvg = weekend.reduce((s,e) => s + sleepLen(e), 0) / weekend.length;
+    const delta = weAvg - wdAvg;
+    if (Math.abs(delta) >= 20 * 60000) {
+      const more = delta > 0 ? 'weekends' : 'weekdays';
+      insights.push({ icon: '◐', text: `You sleep <em>${fmtDur(Math.abs(delta))} more</em> on ${more}.` });
+    }
+  }
+
+  // 2) Best day of week
+  const byDow = {};
+  completed.forEach(e => {
+    const d = new Date(e.wakeTime).getDay();
+    if (!byDow[d]) byDow[d] = [];
+    byDow[d].push(sleepLen(e));
+  });
+  const dowAvgs = Object.entries(byDow)
+    .filter(([,arr]) => arr.length >= 2)
+    .map(([d, arr]) => ({ d: parseInt(d), avg: arr.reduce((s,x)=>s+x,0)/arr.length }));
+  if (dowAvgs.length >= 3) {
+    dowAvgs.sort((a,b) => b.avg - a.avg);
+    const dnames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const top = dowAvgs[0];
+    insights.push({ icon: '◑', text: `<em>${dnames[top.d]}s</em> are your longest nights — avg ${fmtDur(top.avg)}.` });
+  }
+
+  // 3) Goal hit rate (last 14 days)
+  const cut14 = Date.now() - 14 * 24 * 3600 * 1000;
+  const last14 = completed.filter(e => new Date(e.bedTime).getTime() > cut14);
+  if (last14.length >= 5) {
+    const hit = last14.filter(e => sleepLen(e) >= goalMs).length;
+    const pct = Math.round((hit / last14.length) * 100);
+    if (pct >= 70) {
+      insights.push({ icon: '◉', text: `You hit your <em>${fmtDur(goalMs)} goal</em> on ${pct}% of nights this fortnight.` });
+    } else if (pct < 30) {
+      insights.push({ icon: '◌', warm: true, text: `Only <em>${pct}%</em> of recent nights hit your ${fmtDur(goalMs)} goal.` });
+    }
+  }
+
+  // 4) Bedtime drift
+  const cut7 = Date.now() - 7 * 24 * 3600 * 1000;
+  const cut14b = Date.now() - 14 * 24 * 3600 * 1000;
+  const recent7 = completed.filter(e => new Date(e.bedTime).getTime() > cut7);
+  const prev7 = completed.filter(e => {
+    const t = new Date(e.bedTime).getTime();
+    return t > cut14b && t <= cut7;
+  });
+  if (recent7.length >= 3 && prev7.length >= 3) {
+    const recBed = avgClock(recent7.map(e => clockMin(e.bedTime)));
+    const prevBed = avgClock(prev7.map(e => clockMin(e.bedTime)));
+    let diff = recBed - prevBed;
+    // Wrap: if shift goes the long way around, it's just a minor drift around midnight
+    if (diff > 720) diff -= 1440;
+    if (diff < -720) diff += 1440;
+    if (Math.abs(diff) >= 20) {
+      const dir = diff > 0 ? 'later' : 'earlier';
+      insights.push({ icon: '◔', text: `Your bedtime has drifted <em>${Math.abs(Math.round(diff))}m ${dir}</em> this week.` });
+    }
+  }
+
+  // 5) Quality + duration correlation
+  const withQual = completed.filter(e => e.quality);
+  if (withQual.length >= 6) {
+    const high = withQual.filter(e => e.quality >= 4);
+    const low = withQual.filter(e => e.quality <= 2);
+    if (high.length >= 2 && low.length >= 2) {
+      const hAvg = high.reduce((s,e) => s + sleepLen(e), 0) / high.length;
+      const lAvg = low.reduce((s,e) => s + sleepLen(e), 0) / low.length;
+      const d = hAvg - lAvg;
+      if (Math.abs(d) >= 20 * 60000) {
+        if (d > 0) insights.push({ icon: '✦', text: `On nights you rate <em>4★+</em>, you sleep ${fmtDur(d)} longer.` });
+      }
+    }
+  }
+
+  // Limit to top 3 most useful (already in priority order)
+  const top = insights.slice(0, 3);
+  if (!top.length) { target.innerHTML = ''; return; }
+  target.innerHTML = top.map(i =>
+    `<div class="insight-card${i.warm ? ' warm' : ''}"><div class="icon">${i.icon}</div><div class="body">${i.text}</div></div>`
+  ).join('');
 }
 
 function renderChart() {
@@ -2916,9 +3094,29 @@ function openDetail(id) {
         <div class="detail-val italic grad">${fmtDur(ms)}</div>
       </div>
       <div class="detail-note italic">Hold the big button to wake.</div>
+      <div style="margin-top:14px;">
+        <div class="label">Adjust bedtime</div>
+        <input type="datetime-local" id="curBedAdjust" value="${toLocalInput(data.current.bedTime)}" style="margin-bottom:0;">
+        <button class="btn btn-ghost" id="curBedSave" style="margin-top:10px;">Update bedtime</button>
+      </div>
     `;
     document.getElementById('detailBody').innerHTML = html;
     document.getElementById('detailEdit').style.display = 'none';
+    const adjustBtn = document.getElementById('curBedSave');
+    if (adjustBtn) {
+      adjustBtn.addEventListener('click', () => {
+        const v = document.getElementById('curBedAdjust').value;
+        if (!v) return;
+        const newBed = new Date(v);
+        if (newBed > new Date()) { toast('bedtime can\'t be in the future'); return; }
+        data.current.bedTime = newBed.toISOString();
+        save();
+        toast('bedtime updated');
+        vibe(15);
+        closeDetail();
+        renderHome();
+      });
+    }
   } else {
     const e = data.entries.find(x => x.id === id);
     if (!e) return;
