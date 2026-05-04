@@ -1,0 +1,2197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a0814">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Zzz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+:root {
+  --bg: #0a0814;
+  --bg-2: #120e22;
+  --surface: #1a1530;
+  --surface-2: #221c3d;
+  --text: #e8e4f5;
+  --muted: #8a85a8;
+  --accent: #8b6cff;
+  --accent-2: #b89dff;
+  --accent-soft: rgba(139, 108, 255, 0.15);
+  --pink: #ff7ac6;
+  --border: rgba(255, 255, 255, 0.08);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139, 108, 255, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(139, 108, 255, 0.06), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+#noise {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+main {
+  position: relative;
+  z-index: 2;
+  padding: calc(var(--safe-top) + 24px) 20px calc(var(--safe-bottom) + 110px);
+  max-width: 480px;
+  margin: 0 auto;
+}
+h1 {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 52px;
+  letter-spacing: -1.5px;
+  margin: 0 0 4px;
+  line-height: 1;
+}
+h1 em, .grad {
+  background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-style: italic;
+}
+.label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  font-weight: 500;
+}
+.center { text-align: center; }
+.tz-banner {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 24px;
+}
+/* big button */
+.bigBtn {
+  display: block;
+  width: 240px; height: 240px;
+  border-radius: 50%;
+  margin: 50px auto 24px;
+  position: relative;
+  cursor: pointer;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08), transparent 50%),
+    linear-gradient(135deg, #2a1f5c 0%, #1a1530 100%);
+  border: 1px solid rgba(139, 108, 255, 0.3);
+  box-shadow:
+    0 0 60px rgba(139, 108, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 26px;
+  transition: transform 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.bigBtn::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(from -90deg, var(--accent) 0%, var(--accent) var(--hold, 0%), transparent var(--hold, 0%));
+  -webkit-mask: radial-gradient(circle, transparent calc(50% - 3px), black calc(50% - 1px), black 50%, transparent calc(50% + 1px));
+  mask: radial-gradient(circle, transparent calc(50% - 3px), black calc(50% - 1px), black 50%, transparent calc(50% + 1px));
+  opacity: var(--holding, 0);
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.bigBtn:active { transform: scale(0.97); }
+.bigBtn.sleeping {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.04), transparent 50%),
+    linear-gradient(135deg, #1f1740 0%, #0f0c1f 100%);
+  animation: breath 4.5s ease-in-out infinite;
+}
+@keyframes breath {
+  0%, 100% { box-shadow: 0 0 50px rgba(139, 108, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+  50% { box-shadow: 0 0 100px rgba(139, 108, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+}
+.btn-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%; height: 100%;
+}
+.duration {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+  letter-spacing: 0.5px;
+  height: 18px;
+}
+.bigBtn .moon {
+  font-size: 36px;
+  margin-bottom: 6px;
+  opacity: 0.7;
+}
+/* nav */
+nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 10;
+  background: linear-gradient(to top, rgba(10, 8, 20, 0.96), rgba(10, 8, 20, 0.7));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  padding: 12px 0 calc(var(--safe-bottom) + 12px);
+  display: flex;
+  justify-content: space-around;
+}
+nav button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: color 0.15s;
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
+}
+nav button.active { color: var(--accent); }
+/* card */
+.card {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.row:last-child { margin-bottom: 0; }
+.row .label { margin-bottom: 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.bigVal {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 22px;
+}
+.italic {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+}
+/* entry rows */
+.entry {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.entry:active { border-color: var(--accent); }
+.entry-main { flex: 1; min-width: 0; }
+.entry-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.entry-dur {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 22px;
+  margin: 2px 0;
+}
+.entry-times {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.quality-dots { display: flex; gap: 3px; flex-shrink: 0; margin-left: 10px; }
+.quality-dots span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.quality-dots span.on { background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+.entry-tags {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
+}
+/* modal */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex; align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.modal-bg.show { opacity: 1; pointer-events: auto; }
+.modal {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 20px calc(var(--safe-bottom) + 24px);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.modal-bg.show .modal { transform: translateY(0); }
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(139,108,255,0.5);
+  border: none;
+}
+input[type=range]::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+}
+input[type=text], input[type=datetime-local], textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 4px;
+}
+input[type=datetime-local] { color-scheme: dark; }
+textarea { resize: vertical; min-height: 60px; }
+button.btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+button.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+button.btn-danger {
+  background: rgba(255, 80, 100, 0.12);
+  color: #ff8090;
+  border: 1px solid rgba(255, 80, 100, 0.3);
+}
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.tag {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text);
+}
+.tag.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.qual-row { display: flex; gap: 8px; margin: 12px 0; }
+.qual-row button {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 0;
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qual-row button.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+/* chart */
+.chart-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  height: 22px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+.chart-day {
+  width: 32px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.chart-track {
+  flex: 1;
+  height: 18px;
+  background: var(--surface);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.chart-bar {
+  position: absolute;
+  top: 2px; bottom: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(139,108,255,0.4);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+.chart-bar:active {
+  transform: scaleY(1.15);
+  filter: brightness(1.2);
+  box-shadow: 0 0 14px rgba(184,157,255,0.7);
+}
+@media (hover: hover) {
+  .chart-bar:hover {
+    filter: brightness(1.15);
+    box-shadow: 0 0 14px rgba(184,157,255,0.6);
+  }
+}
+.chart-mid {
+  position: absolute;
+  left: 50%;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,0.06);
+}
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 40px;
+  margin-top: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.stat-val {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 24px;
+  margin: 4px 0 0;
+  line-height: 1.1;
+}
+.view { display: none; }
+.view.active { display: block; }
+.empty {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--muted);
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 18px;
+}
+.section-label {
+  margin: 24px 0 12px;
+}
+
+/* chart range toggle */
+.chart-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.chart-toggle button {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chart-toggle button.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.chart-card { padding: 14px; max-height: 60vh; overflow-y: auto; }
+.chart-card::-webkit-scrollbar { width: 4px; }
+.chart-card::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* clock face */
+.clock-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 14px;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 14px;
+}
+.clock-wrap svg { flex-shrink: 0; filter: drop-shadow(0 0 14px rgba(139,108,255,0.15)); }
+.clock-meta { display: flex; flex-direction: column; gap: 8px; }
+.clock-row { display: flex; align-items: baseline; gap: 8px; }
+.clock-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  width: 36px;
+}
+.clock-val {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 22px;
+}
+
+/* travel */
+.travel-empty {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--muted);
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.travel-empty .lead { color: var(--text); font-size: 22px; margin-bottom: 10px; }
+.travel-cta {
+  margin-top: 18px;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 600;
+  cursor: pointer;
+}
+.stay {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.stay.current::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+.stay-place {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.stay-place em { background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; font-style: italic; }
+.stay-dates {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.stay-dates .nights {
+  color: var(--accent-2);
+  font-weight: 500;
+  margin-left: 6px;
+}
+.stay-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  flex-wrap: wrap;
+}
+.stay-meta .qd { display: inline-flex; gap: 3px; vertical-align: middle; }
+.stay-meta .qd span { width: 5px; height: 5px; border-radius: 50%; background: var(--border); display: inline-block; }
+.stay-meta .qd span.on { background: var(--accent); }
+.travel-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.travel-actions button {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.travel-actions button.primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.travel-summary {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.travel-summary em { color: var(--text); font-style: italic; }
+
+/* map overlay */
+.map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg);
+  display: none;
+}
+.map-overlay.show { display: block; }
+.map-overlay #map {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+}
+.map-close {
+  position: absolute;
+  top: calc(var(--safe-top) + 14px);
+  left: 14px;
+  z-index: 100;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(15, 10, 31, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.map-title {
+  position: absolute;
+  top: calc(var(--safe-top) + 14px);
+  left: 70px;
+  right: 14px;
+  z-index: 100;
+  padding: 11px 16px;
+  background: rgba(15, 10, 31, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+.map-title em { color: var(--accent-2); font-style: normal; }
+.leaflet-container { background: var(--bg) !important; font-family: 'JetBrains Mono', monospace; }
+.leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.95) saturate(0.65); }
+.leaflet-control-attribution { background: rgba(15,10,31,0.7) !important; color: var(--muted) !important; font-size: 9px !important; }
+.leaflet-control-attribution a { color: var(--accent-2) !important; }
+.leaflet-control-zoom { border: none !important; }
+.leaflet-control-zoom a {
+  background: rgba(15,10,31,0.85) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  width: 34px !important; height: 34px !important; line-height: 34px !important;
+  border-radius: 8px !important;
+  margin-bottom: 4px !important;
+}
+.zzz-pin {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.15), 0 0 12px var(--accent);
+}
+.zzz-pin.current {
+  background: var(--accent-2);
+  box-shadow: 0 0 0 4px rgba(184,157,255,0.25), 0 0 14px var(--accent-2);
+}
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 10, 31, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.leaflet-popup-tip { background: rgba(15, 10, 31, 0.95); }
+.leaflet-popup-content { margin: 12px 14px; font-size: 12px; line-height: 1.5; }
+.leaflet-popup-content .pop-title {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+.leaflet-popup-content .pop-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+input[type=file] { display: none; }
+
+.loc-toggle {
+  width: 46px; height: 26px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.loc-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: all 0.2s;
+}
+.loc-toggle.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.loc-toggle.on::after {
+  left: 22px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* Detail sheet */
+.detail-head {
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(139,108,255,0.3);
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-2);
+  margin-bottom: 8px;
+}
+.detail-title {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 28px;
+  margin: 0 0 6px;
+  letter-spacing: -0.015em;
+}
+.detail-place {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(255,255,255,0.05);
+  gap: 12px;
+}
+.detail-row:last-of-type { border-bottom: none; }
+.detail-row.big { padding: 14px 0; }
+.detail-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  flex-shrink: 0;
+}
+.detail-val {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 16px;
+  text-align: right;
+  word-wrap: break-word;
+  min-width: 0;
+}
+.detail-val.italic { font-style: italic; }
+.detail-tz {
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-left: 2px;
+}
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.detail-chip {
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  font-style: normal;
+}
+.detail-note {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.card.tappable {
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.card.tappable:active {
+  transform: scale(0.99);
+  border-color: rgba(139,108,255,0.3);
+}
+@media (hover: hover) {
+  .card.tappable:hover {
+    border-color: rgba(139,108,255,0.25);
+    box-shadow: 0 0 24px rgba(139,108,255,0.08);
+  }
+}
+.tap-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  text-align: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255,255,255,0.05);
+  opacity: 0.55;
+}
+.card.tappable.center .tap-hint { border-top: none; padding-top: 6px; margin-top: 8px; }
+.discard-link {
+  display: block;
+  margin: 14px auto 0;
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  cursor: pointer;
+  width: auto;
+  transition: color 0.15s, border-color 0.15s;
+}
+.discard-link:active {
+  color: #ff8090;
+  border-color: rgba(255,80,100,0.3);
+}
+
+</style>
+</head>
+<body>
+<div id="noise"></div>
+<main>
+  <!-- HOME -->
+  <section class="view active" id="view-home">
+    <div class="tz-banner" id="tzBanner">—</div>
+    <h1 class="center"><em>Zzz</em></h1>
+    <button class="bigBtn" id="bigBtn">
+      <div class="btn-inner">
+        <div class="moon" id="btnIcon">☾</div>
+        <div id="btnLabel">Hold to sleep</div>
+      </div>
+    </button>
+    <div class="duration center" id="liveDur"></div>
+    <div id="lastNight"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <h1>His<em>tory</em></h1>
+    <div class="label section-label" style="margin-top:8px;">All entries · tap to edit</div>
+    <div id="historyList"></div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="view" id="view-insights">
+    <h1>In<em>sights</em></h1>
+    <div class="label section-label" style="margin-top:8px;">When you sleep</div>
+    <div id="chart"></div>
+    <div class="label section-label">Average day</div>
+    <div id="clockFace"></div>
+    <div class="label section-label">Stats</div>
+    <div class="stat-grid" id="stats"></div>
+    <div class="label section-label">Weekly review</div>
+    <div class="card" id="review"></div>
+  </section>
+
+  <!-- TRAVEL -->
+  <section class="view" id="view-travel">
+    <h1>Tra<em>vel</em></h1>
+    <div class="label section-label" style="margin-top:8px;">Where you've been sleeping</div>
+    <div id="travelBody"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings">
+    <h1>Set<em>tings</em></h1>
+    <div class="label section-label" style="margin-top:8px;">Location</div>
+    <div class="card">
+      <div class="row" style="margin-bottom:0;">
+        <div>
+          <div class="italic" style="font-size:18px;">Capture sleep location</div>
+          <div class="label" style="text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">Quietly tag each night with where you slept. Powers the Travel page.</div>
+        </div>
+        <div class="loc-toggle" id="locToggle"></div>
+      </div>
+    </div>
+    <div class="label section-label">Data</div>
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="italic" style="font-size:18px;">Export JSON</div>
+          <div class="label">Download all sleep data</div>
+        </div>
+        <button class="btn" style="width:auto;padding:10px 16px;" onclick="exportData()">Export</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="italic" style="font-size:18px;">Import JSON</div>
+          <div class="label">Restore from a zzz export file</div>
+        </div>
+        <button class="btn" style="width:auto;padding:10px 16px;" onclick="importData()">Import</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="italic" style="font-size:18px;">Reset</div>
+          <div class="label">Erase all sleep data</div>
+        </div>
+        <button class="btn btn-danger" style="width:auto;padding:10px 16px;" onclick="resetAll()">Reset</button>
+      </div>
+    </div>
+    <div class="center italic" style="margin-top:30px;color:var(--muted);font-size:14px;">
+      Zzz · v1
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-view="home" class="active">Sleep</button>
+  <button data-view="history">History</button>
+  <button data-view="insights">Insights</button>
+  <button data-view="travel">Travel</button>
+  <button data-view="settings">Settings</button>
+</nav>
+
+<!-- Morning prompt modal -->
+<div class="modal-bg" id="morningModal">
+  <div class="modal">
+    <h1 style="font-size:36px;margin-bottom:6px;">Good <em>morning</em></h1>
+    <div class="label" id="morningSummary">—</div>
+    <hr>
+    <div class="label">How long to fall asleep?</div>
+    <div style="display:flex;align-items:center;gap:14px;margin:12px 0 8px;">
+      <span id="latVal" class="italic grad" style="font-size:24px;width:90px;">15 min</span>
+      <input type="range" id="latency" min="0" max="90" step="5" value="15">
+    </div>
+    <button class="btn btn-ghost" id="latIdk" style="margin-bottom:14px;">I don't know — estimate it</button>
+    <hr>
+    <div class="label">Quality</div>
+    <div class="qual-row" id="qualRow">
+      <button data-q="1">😣</button>
+      <button data-q="2">😕</button>
+      <button data-q="3">😐</button>
+      <button data-q="4">🙂</button>
+      <button data-q="5">😴</button>
+    </div>
+    <div class="label">Tags</div>
+    <div class="tags" id="tagsRow"></div>
+    <div class="label">Note</div>
+    <textarea id="noteInput" placeholder="optional"></textarea>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-ghost" onclick="closeMorning(false)">Skip</button>
+      <button class="btn" onclick="closeMorning(true)">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h1 style="font-size:34px;margin-bottom:14px;">Edit <em>night</em></h1>
+    <div class="label">Bedtime</div>
+    <input type="datetime-local" id="editBed" style="margin-bottom:10px;">
+    <div class="label">Wake time</div>
+    <input type="datetime-local" id="editWake" style="margin-bottom:14px;">
+    <div class="label">Latency: <span id="editLatVal" class="grad italic">—</span></div>
+    <input type="range" id="editLat" min="0" max="90" step="5" style="margin:8px 0 14px;">
+    <div class="label">Quality</div>
+    <div class="qual-row" id="editQualRow">
+      <button data-q="1">😣</button>
+      <button data-q="2">😕</button>
+      <button data-q="3">😐</button>
+      <button data-q="4">🙂</button>
+      <button data-q="5">😴</button>
+    </div>
+    <div class="label">Tags</div>
+    <div class="tags" id="editTagsRow"></div>
+    <div class="label">Note</div>
+    <textarea id="editNote"></textarea>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-danger" onclick="deleteEntry()">Delete</button>
+      <button class="btn" onclick="saveEdit()">Save</button>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="closeEdit()">Cancel</button>
+  </div>
+</div>
+
+<!-- Detail sheet (chart bar tap) -->
+<div class="modal-bg" id="detailModal">
+  <div class="modal" id="detailModalInner">
+    <div id="detailBody"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn btn-ghost" id="detailClose">Close</button>
+      <button class="btn" id="detailEdit">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Map overlay -->
+<div class="map-overlay" id="mapOverlay">
+  <div id="map"></div>
+  <button class="map-close" id="mapClose">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div class="map-title" id="mapTitle">Your sleep map</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const TAG_LIST = ['late meal', 'exercise', 'alcohol', 'weed', 'caffeine', 'screens', 'stress', 'travel'];
+const STORE_KEY = 'zzz_v1';
+let data = load();
+let editingId = null;
+let liveTimer = null;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.entries) parsed.entries = [];
+      if (!parsed.settings) parsed.settings = { captureLocation: false, chartRange: 7 };
+      if (parsed.settings.captureLocation == null) parsed.settings.captureLocation = false;
+      if (parsed.settings.chartRange == null) parsed.settings.chartRange = 7;
+      if (!parsed.placeCache) parsed.placeCache = {};
+      return parsed;
+    }
+  } catch (e) {}
+  return { entries: [], current: null, settings: { captureLocation: false, chartRange: 7 }, placeCache: {} };
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function vibe(p) { try { navigator.vibrate(p); } catch (e) {} }
+function fmtTime(iso, tz) {
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  } catch (e) {
+    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+}
+function fmtDate(iso, tz) {
+  try {
+    return new Date(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+  } catch (e) {
+    return new Date(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+}
+function fmtDur(ms) {
+  if (!ms || ms <= 0) return '—';
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+function avgLatency() {
+  const recent = data.entries.filter(e => e.latencyMin != null && !e.latencyEstimated).slice(-14);
+  if (!recent.length) return 15;
+  return Math.round(recent.reduce((s, e) => s + e.latencyMin, 0) / recent.length);
+}
+function curTz() { return Intl.DateTimeFormat().resolvedOptions().timeZone; }
+
+// LOCATION
+function getPosition(opts) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('no geo'));
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+      err => reject(err),
+      Object.assign({ enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 }, opts || {})
+    );
+  });
+}
+function placeKey(lat, lng) {
+  // round to ~1km
+  return lat.toFixed(2) + ',' + lng.toFixed(2);
+}
+async function reverseGeocode(lat, lng) {
+  const k = placeKey(lat, lng);
+  if (data.placeCache[k]) return data.placeCache[k];
+  try {
+    // BigDataCloud's free reverse-geocode-client endpoint, no key required
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`);
+    if (!r.ok) throw new Error('rg failed');
+    const j = await r.json();
+    const city = j.city || j.locality || j.principalSubdivision || '';
+    const country = j.countryName || '';
+    const name = city && country ? `${city}, ${country}` : (city || country || 'Unknown');
+    data.placeCache[k] = name;
+    save();
+    return name;
+  } catch (e) {
+    return null;
+  }
+}
+async function captureLocationFor(record) {
+  if (!data.settings || !data.settings.captureLocation) return;
+  try {
+    const pos = await getPosition();
+    record.lat = pos.lat;
+    record.lng = pos.lng;
+    save();
+    const name = await reverseGeocode(pos.lat, pos.lng);
+    if (name) {
+      record.place = name;
+      save();
+    }
+    if (document.getElementById('view-travel').classList.contains('active')) renderTravel();
+    if (document.getElementById('view-home').classList.contains('active')) renderHome();
+  } catch (e) {
+    // silently ignore — denied/unavailable
+  }
+}
+async function backfillPlaceForEntry(e) {
+  if (e.place) return;
+  if (typeof e.lat !== 'number' || typeof e.lng !== 'number') return;
+  const name = await reverseGeocode(e.lat, e.lng);
+  if (name) {
+    e.place = name;
+    save();
+  }
+}
+
+// VIEW SWITCHING
+document.querySelectorAll('nav button').forEach(b => {
+  b.addEventListener('click', () => {
+    const v = b.dataset.view;
+    document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'view-' + v));
+    if (v === 'history') renderHistory();
+    if (v === 'insights') renderInsights();
+    if (v === 'home') renderHome();
+    if (v === 'travel') renderTravel();
+    if (v === 'settings') renderSettings();
+    vibe(8);
+    window.scrollTo(0, 0);
+  });
+});
+
+// BIG BUTTON: long-press to commit
+let holdStart = 0, holdTimer = null, holdRaf = null;
+const bigBtn = document.getElementById('bigBtn');
+const HOLD_MS = 700;
+
+function startHold(e) {
+  if (holdTimer) return;
+  e.preventDefault();
+  holdStart = Date.now();
+  bigBtn.style.setProperty('--holding', '1');
+  vibe(15);
+  function tick() {
+    const p = Math.min(100, ((Date.now() - holdStart) / HOLD_MS) * 100);
+    bigBtn.style.setProperty('--hold', p + '%');
+    if (p < 100) holdRaf = requestAnimationFrame(tick);
+  }
+  tick();
+  holdTimer = setTimeout(() => {
+    commitTap();
+    endHold();
+  }, HOLD_MS);
+}
+function endHold() {
+  if (holdTimer) clearTimeout(holdTimer);
+  if (holdRaf) cancelAnimationFrame(holdRaf);
+  holdTimer = null;
+  holdRaf = null;
+  bigBtn.style.setProperty('--holding', '0');
+  bigBtn.style.setProperty('--hold', '0%');
+}
+bigBtn.addEventListener('touchstart', startHold, { passive: false });
+bigBtn.addEventListener('mousedown', startHold);
+bigBtn.addEventListener('touchend', endHold);
+bigBtn.addEventListener('touchcancel', endHold);
+bigBtn.addEventListener('mouseup', endHold);
+bigBtn.addEventListener('mouseleave', endHold);
+
+function commitTap() {
+  vibe([20, 40, 80]);
+  if (data.current) {
+    const wake = new Date().toISOString();
+    const entry = {
+      id: uid(),
+      bedTime: data.current.bedTime,
+      wakeTime: wake,
+      latencyMin: null,
+      latencyEstimated: false,
+      quality: null,
+      note: '',
+      tags: [],
+      tz: data.current.tz,
+      wakeTz: curTz(),
+      lat: data.current.lat,
+      lng: data.current.lng,
+      place: data.current.place,
+    };
+    data.entries.push(entry);
+    data.current = null;
+    save();
+    openMorning(entry);
+  } else {
+    data.current = { bedTime: new Date().toISOString(), tz: curTz() };
+    save();
+    captureLocationFor(data.current);
+  }
+  renderHome();
+}
+
+// HOME RENDER
+function renderHome() {
+  const sleeping = !!data.current;
+  document.getElementById('btnLabel').textContent = sleeping ? 'Hold to wake' : 'Hold to sleep';
+  document.getElementById('btnIcon').textContent = sleeping ? '☀' : '☾';
+  bigBtn.classList.toggle('sleeping', sleeping);
+  document.getElementById('tzBanner').textContent = curTz().replace(/_/g, ' ').replace('/', ' · ');
+
+  if (sleeping) {
+    updateLive();
+    if (!liveTimer) liveTimer = setInterval(updateLive, 30000);
+  } else {
+    if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+    document.getElementById('liveDur').textContent = '';
+  }
+
+  const last = data.entries[data.entries.length - 1];
+  const target = document.getElementById('lastNight');
+  if (sleeping) {
+    target.innerHTML = `
+      <div class="label section-label">In bed since</div>
+      <div class="card center tappable" data-detail-id="__current">
+        <div class="italic" style="font-size:30px;">${fmtTime(data.current.bedTime, data.current.tz)}</div>
+        <div class="label" style="margin-top:6px;">${fmtDate(data.current.bedTime, data.current.tz)}</div>
+        <div class="tap-hint">tap for details</div>
+      </div>
+      <button class="discard-link" id="discardCurrent">discard · not asleep yet</button>
+    `;
+  } else if (last) {
+    const lat = last.latencyMin != null ? last.latencyMin : avgLatency();
+    const inBed = new Date(last.wakeTime) - new Date(last.bedTime);
+    const sleep = Math.max(0, inBed - lat * 60000);
+    const isToday = (new Date(last.wakeTime).toDateString() === new Date().toDateString());
+    target.innerHTML = `
+      <div class="label section-label">${isToday ? 'Last night' : 'Most recent'}</div>
+      <div class="card tappable" data-detail-id="${last.id}">
+        <div class="row">
+          <div class="label">In bed</div>
+          <div class="italic" style="font-size:18px;">${fmtDur(inBed)}</div>
+        </div>
+        <div class="row">
+          <div class="label">Slept ${last.latencyMin == null ? '(est)' : ''}</div>
+          <div class="italic grad" style="font-size:26px;">${fmtDur(sleep)}</div>
+        </div>
+        <div class="row" style="margin-bottom:0;">
+          <div class="label">${fmtTime(last.bedTime, last.tz)} → ${fmtTime(last.wakeTime, last.wakeTz || last.tz)}</div>
+          <div class="quality-dots">${[1,2,3,4,5].map(n => `<span class="${last.quality && last.quality>=n ? 'on' : ''}"></span>`).join('')}</div>
+        </div>
+        <div class="tap-hint">tap for details · edit</div>
+      </div>
+    `;
+  } else {
+    target.innerHTML = `<div class="empty">tap and hold the button when you go to bed</div>`;
+  }
+  // wire taps
+  target.querySelectorAll('[data-detail-id]').forEach(card => {
+    card.addEventListener('click', () => openDetail(card.dataset.detailId));
+  });
+  const discardBtn = document.getElementById('discardCurrent');
+  if (discardBtn) {
+    discardBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Discard this sleep session?')) {
+        data.current = null;
+        save();
+        vibe(30);
+        renderHome();
+      }
+    });
+  }
+}
+function updateLive() {
+  if (!data.current) return;
+  const ms = Date.now() - new Date(data.current.bedTime).getTime();
+  document.getElementById('liveDur').textContent = fmtDur(ms);
+}
+
+// MORNING PROMPT
+let morningEntry = null;
+let selectedTags = new Set();
+let selectedQual = null;
+
+function openMorning(entry) {
+  morningEntry = entry;
+  selectedTags = new Set();
+  selectedQual = null;
+  const inBed = new Date(entry.wakeTime) - new Date(entry.bedTime);
+  document.getElementById('morningSummary').textContent = `In bed ${fmtDur(inBed)} · ${fmtTime(entry.bedTime, entry.tz)} → ${fmtTime(entry.wakeTime, entry.tz)}`;
+
+  const tagsRow = document.getElementById('tagsRow');
+  tagsRow.innerHTML = TAG_LIST.map(t => `<button class="tag" data-t="${t}">${t}</button>`).join('');
+  tagsRow.querySelectorAll('.tag').forEach(b => {
+    b.addEventListener('click', () => {
+      const t = b.dataset.t;
+      if (selectedTags.has(t)) { selectedTags.delete(t); b.classList.remove('on'); }
+      else { selectedTags.add(t); b.classList.add('on'); }
+      vibe(8);
+    });
+  });
+
+  document.querySelectorAll('#qualRow button').forEach(b => {
+    b.classList.remove('on');
+    b.onclick = () => {
+      selectedQual = parseInt(b.dataset.q);
+      document.querySelectorAll('#qualRow button').forEach(x => x.classList.toggle('on', x === b));
+      vibe(8);
+    };
+  });
+
+  const lat = document.getElementById('latency');
+  lat.value = 15;
+  document.getElementById('latVal').textContent = '15 min';
+  lat.dataset.est = '';
+  lat.oninput = () => {
+    document.getElementById('latVal').textContent = lat.value + ' min';
+    lat.dataset.est = '';
+  };
+  document.getElementById('latIdk').onclick = () => {
+    const est = avgLatency();
+    lat.value = est;
+    document.getElementById('latVal').textContent = `~${est} min · est`;
+    lat.dataset.est = '1';
+    vibe(15);
+  };
+  document.getElementById('noteInput').value = '';
+  document.getElementById('morningModal').classList.add('show');
+}
+function closeMorning(saveIt) {
+  if (saveIt && morningEntry) {
+    const lat = document.getElementById('latency');
+    morningEntry.latencyMin = parseInt(lat.value);
+    morningEntry.latencyEstimated = lat.dataset.est === '1';
+    morningEntry.quality = selectedQual;
+    morningEntry.tags = [...selectedTags];
+    morningEntry.note = document.getElementById('noteInput').value.trim();
+    save();
+    renderHome();
+    vibe(20);
+  }
+  document.getElementById('morningModal').classList.remove('show');
+}
+
+// HISTORY
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!data.entries.length) {
+    list.innerHTML = '<div class="empty">no nights yet</div>';
+    return;
+  }
+  list.innerHTML = data.entries.slice().reverse().map(e => {
+    const inBed = new Date(e.wakeTime) - new Date(e.bedTime);
+    const lat = e.latencyMin != null ? e.latencyMin : avgLatency();
+    const sleep = Math.max(0, inBed - lat * 60000);
+    const qDots = [1,2,3,4,5].map(n => `<span class="${e.quality && e.quality>=n ? 'on' : ''}"></span>`).join('');
+    const tagStr = (e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.join(' · ')}</div>` : '';
+    return `<div class="entry" onclick="openEdit('${e.id}')">
+      <div class="entry-main">
+        <div class="entry-date">${fmtDate(e.bedTime, e.tz)}</div>
+        <div class="entry-dur">${fmtDur(sleep)}<span style="font-size:11px;color:var(--muted);font-family:JetBrains Mono;font-style:normal;text-transform:uppercase;letter-spacing:0.1em;"> sleep</span></div>
+        <div class="entry-times">${fmtTime(e.bedTime, e.tz)} → ${fmtTime(e.wakeTime, e.wakeTz || e.tz)} · ${fmtDur(inBed)} in bed</div>
+        ${tagStr}
+      </div>
+      <div class="quality-dots">${qDots}</div>
+    </div>`;
+  }).join('');
+}
+
+// EDIT
+function openEdit(id) {
+  editingId = id;
+  const e = data.entries.find(x => x.id === id);
+  if (!e) return;
+  vibe(15);
+  document.getElementById('editBed').value = toLocalInput(e.bedTime);
+  document.getElementById('editWake').value = toLocalInput(e.wakeTime);
+  const lat = e.latencyMin != null ? e.latencyMin : avgLatency();
+  document.getElementById('editLat').value = lat;
+  document.getElementById('editLatVal').textContent = `${lat} min` + (e.latencyMin == null ? ' · est' : '');
+  document.getElementById('editLat').oninput = (ev) => {
+    document.getElementById('editLatVal').textContent = ev.target.value + ' min';
+  };
+  document.querySelectorAll('#editQualRow button').forEach(b => {
+    b.classList.toggle('on', e.quality === parseInt(b.dataset.q));
+    b.onclick = () => {
+      const ne = data.entries.find(x => x.id === editingId);
+      if (!ne) return;
+      ne.quality = parseInt(b.dataset.q);
+      document.querySelectorAll('#editQualRow button').forEach(x => x.classList.toggle('on', x === b));
+      vibe(8);
+    };
+  });
+  const tags = new Set(e.tags || []);
+  const tr = document.getElementById('editTagsRow');
+  tr.innerHTML = TAG_LIST.map(t => `<button class="tag ${tags.has(t)?'on':''}" data-t="${t}">${t}</button>`).join('');
+  tr.querySelectorAll('.tag').forEach(b => {
+    b.addEventListener('click', () => {
+      const t = b.dataset.t;
+      const ne = data.entries.find(x => x.id === editingId);
+      if (!ne) return;
+      const set = new Set(ne.tags || []);
+      if (set.has(t)) set.delete(t); else set.add(t);
+      ne.tags = [...set];
+      b.classList.toggle('on');
+      vibe(8);
+    });
+  });
+  document.getElementById('editNote').value = e.note || '';
+  document.getElementById('editModal').classList.add('show');
+}
+function toLocalInput(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function saveEdit() {
+  const e = data.entries.find(x => x.id === editingId);
+  if (!e) return;
+  const bedV = document.getElementById('editBed').value;
+  const wakeV = document.getElementById('editWake').value;
+  if (!bedV || !wakeV) return;
+  e.bedTime = new Date(bedV).toISOString();
+  e.wakeTime = new Date(wakeV).toISOString();
+  e.latencyMin = parseInt(document.getElementById('editLat').value);
+  e.latencyEstimated = false;
+  e.note = document.getElementById('editNote').value.trim();
+  save();
+  renderHistory();
+  renderHome();
+  closeEdit();
+  vibe(20);
+}
+function deleteEntry() {
+  if (!confirm('Delete this night?')) return;
+  data.entries = data.entries.filter(x => x.id !== editingId);
+  save();
+  renderHistory();
+  renderHome();
+  closeEdit();
+}
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('show');
+  editingId = null;
+}
+
+// INSIGHTS / CHART
+function renderInsights() {
+  renderChart();
+  renderStats();
+  renderClockFace();
+  renderReview();
+}
+
+function renderChart() {
+  const N = data.settings && data.settings.chartRange ? data.settings.chartRange : 7;
+  const completed = data.entries.filter(e => e.wakeTime);
+  const totalNights = completed.length + (data.current ? 1 : 0);
+  let nDays;
+  if (N === 'all') nDays = Math.max(7, Math.min(90, totalNights || 7));
+  else nDays = N;
+  const now = new Date();
+  const days = [];
+  for (let i = 0; i < nDays; i++) {
+    const d = new Date(now);
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  let html = '<div class="chart-toggle">' +
+    ['7','30','all'].map(v => {
+      const isOn = (N+'') === v;
+      return `<button class="${isOn?'on':''}" data-range="${v}">${v === 'all' ? 'all' : v + 'd'}</button>`;
+    }).join('') +
+    '</div><div class="card chart-card">';
+  days.forEach(noon => {
+    const start = noon.getTime();
+    const end = start + 24 * 3600 * 1000;
+    const isToday = noon.toDateString() === new Date(now).toDateString();
+    const label = isToday ? 'TDY' : noon.toLocaleDateString([], { weekday: 'short' }).slice(0, 3).toUpperCase();
+    let bars = '<div class="chart-mid"></div>';
+    data.entries.forEach(e => {
+      const bt = new Date(e.bedTime).getTime();
+      const wt = new Date(e.wakeTime).getTime();
+      const a = Math.max(bt, start), b = Math.min(wt, end);
+      if (b > a) {
+        const left = ((a - start) / (24 * 3600 * 1000)) * 100;
+        const width = ((b - a) / (24 * 3600 * 1000)) * 100;
+        bars += `<div class="chart-bar" data-id="${e.id}" style="left:${left}%;width:${width}%"></div>`;
+      }
+    });
+    if (data.current) {
+      const bt = new Date(data.current.bedTime).getTime();
+      const a = Math.max(bt, start), b = Math.min(Date.now(), end);
+      if (b > a) {
+        const left = ((a - start) / (24 * 3600 * 1000)) * 100;
+        const width = ((b - a) / (24 * 3600 * 1000)) * 100;
+        bars += `<div class="chart-bar current" data-id="__current" style="left:${left}%;width:${width}%;opacity:0.6;"></div>`;
+      }
+    }
+    html += `<div class="chart-row"><div class="chart-day">${label}</div><div class="chart-track">${bars}</div></div>`;
+  });
+  html += '</div><div class="chart-axis"><span>12pm</span><span>6pm</span><span>12am</span><span>6am</span><span>12pm</span></div>';
+  document.getElementById('chart').innerHTML = html;
+  // wire up bar taps
+  document.querySelectorAll('.chart-bar[data-id]').forEach(bar => {
+    bar.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      openDetail(bar.dataset.id);
+    });
+  });
+  document.querySelectorAll('.chart-toggle button').forEach(b => {
+    b.addEventListener('click', () => {
+      const r = b.dataset.range;
+      data.settings = data.settings || {};
+      data.settings.chartRange = r === 'all' ? 'all' : parseInt(r);
+      save();
+      renderChart();
+      vibe(8);
+    });
+  });
+}
+
+function renderStats() {
+  const now = new Date();
+  const completed = data.entries.filter(e => e.wakeTime);
+  const cutoff = now.getTime() - 7 * 24 * 3600 * 1000;
+  const last7 = completed.filter(e => new Date(e.bedTime).getTime() > cutoff);
+  const avgSleep = last7.length ? last7.reduce((s, e) => s + sleepLen(e), 0) / last7.length : 0;
+  const avgInBed = last7.length ? last7.reduce((s, e) => s + (new Date(e.wakeTime) - new Date(e.bedTime)), 0) / last7.length : 0;
+  const avgBed = last7.length ? avgClock(last7.map(e => clockMin(e.bedTime))) : null;
+  const avgWake = last7.length ? avgClock(last7.map(e => clockMin(e.wakeTime))) : null;
+  const consistency = last7.length >= 3 ? consistencyScore(last7) : null;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="label">Avg sleep</div><div class="stat-val grad">${fmtDur(avgSleep)}</div></div>
+    <div class="stat"><div class="label">Avg in bed</div><div class="stat-val">${fmtDur(avgInBed)}</div></div>
+    <div class="stat"><div class="label">Avg bedtime</div><div class="stat-val">${avgBed != null ? minToClock(avgBed) : '—'}</div></div>
+    <div class="stat"><div class="label">Avg wake</div><div class="stat-val">${avgWake != null ? minToClock(avgWake) : '—'}</div></div>
+    <div class="stat" style="grid-column:span 2;"><div class="label">Consistency · bedtime variance</div><div class="stat-val grad">${consistency != null ? consistency + '%' : '—'}</div></div>
+  `;
+}
+
+function renderClockFace() {
+  const completed = data.entries.filter(e => e.wakeTime);
+  const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
+  const last7 = completed.filter(e => new Date(e.bedTime).getTime() > cutoff);
+  const target = document.getElementById('clockFace');
+  if (!last7.length) {
+    target.innerHTML = '<div class="empty" style="padding:20px;font-size:13px;">need a night to draw the average</div>';
+    return;
+  }
+  const avgBed = avgClock(last7.map(e => clockMin(e.bedTime)));
+  const avgWake = avgClock(last7.map(e => clockMin(e.wakeTime)));
+  // 24h face: 0min = top (12am), goes clockwise
+  const minToAngle = m => (m / 1440) * 360 - 90;
+  const bedA = minToAngle(avgBed);
+  const wakeA = minToAngle(avgWake);
+  const r = 62, cx = 80, cy = 80;
+  // arc from bed → wake (going clockwise/forward in time)
+  const start = bedA, end = wakeA;
+  let sweep = end - start;
+  if (sweep < 0) sweep += 360;
+  const largeArc = sweep > 180 ? 1 : 0;
+  const x1 = cx + r * Math.cos(bedA * Math.PI / 180);
+  const y1 = cy + r * Math.sin(bedA * Math.PI / 180);
+  const x2 = cx + r * Math.cos(wakeA * Math.PI / 180);
+  const y2 = cy + r * Math.sin(wakeA * Math.PI / 180);
+  // tick marks every 3h
+  let ticks = '';
+  for (let t = 0; t < 24; t += 3) {
+    const a = minToAngle(t * 60);
+    const major = (t % 6 === 0);
+    const r1 = major ? r - 6 : r - 3;
+    const r2 = r + 1;
+    const tx1 = cx + r1 * Math.cos(a * Math.PI / 180);
+    const ty1 = cy + r1 * Math.sin(a * Math.PI / 180);
+    const tx2 = cx + r2 * Math.cos(a * Math.PI / 180);
+    const ty2 = cy + r2 * Math.sin(a * Math.PI / 180);
+    ticks += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="rgba(255,255,255,${major?0.25:0.12})" stroke-width="${major?1.5:1}"/>`;
+    if (major) {
+      const lr = r + 12;
+      const lx = cx + lr * Math.cos(a * Math.PI / 180);
+      const ly = cy + lr * Math.sin(a * Math.PI / 180) + 3;
+      const lbl = t === 0 ? '12a' : t === 12 ? '12p' : (t < 12 ? t + 'a' : (t - 12) + 'p');
+      ticks += `<text x="${lx}" y="${ly}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="rgba(255,255,255,0.35)">${lbl}</text>`;
+    }
+  }
+  // moon at bed, sun at wake
+  const mx = cx + r * Math.cos(bedA * Math.PI / 180);
+  const my = cy + r * Math.sin(bedA * Math.PI / 180);
+  const sx = cx + r * Math.cos(wakeA * Math.PI / 180);
+  const sy = cy + r * Math.sin(wakeA * Math.PI / 180);
+  const svg = `<svg viewBox="0 0 160 160" width="160" height="160">
+    <defs>
+      <linearGradient id="arcG" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#8b6cff"/>
+        <stop offset="100%" stop-color="#b89dff"/>
+      </linearGradient>
+    </defs>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+    ${ticks}
+    <path d="M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}" fill="none" stroke="url(#arcG)" stroke-width="6" stroke-linecap="round" filter="drop-shadow(0 0 6px rgba(139,108,255,0.5))"/>
+    <circle cx="${mx}" cy="${my}" r="6" fill="#1a1530" stroke="#8b6cff" stroke-width="2"/>
+    <text x="${mx}" y="${my + 3}" text-anchor="middle" font-size="9" fill="#b89dff">☾</text>
+    <circle cx="${sx}" cy="${sy}" r="6" fill="#1a1530" stroke="#b89dff" stroke-width="2"/>
+    <text x="${sx}" y="${sy + 3}" text-anchor="middle" font-size="9" fill="#ffd87a">☀</text>
+  </svg>`;
+  target.innerHTML = `<div class="clock-wrap">${svg}<div class="clock-meta"><div class="clock-row"><span class="clock-lbl">bed</span><span class="clock-val">${minToClock(avgBed)}</span></div><div class="clock-row"><span class="clock-lbl">wake</span><span class="clock-val">${minToClock(avgWake)}</span></div><div class="clock-row"><span class="clock-lbl">avg</span><span class="clock-val grad">${fmtDur(((avgWake - avgBed + 1440) % 1440) * 60000)}</span></div></div></div>`;
+}
+
+function renderReview() {
+  const now = new Date();
+  const completed = data.entries.filter(e => e.wakeTime);
+  const cutoff = now.getTime() - 7 * 24 * 3600 * 1000;
+  const last7 = completed.filter(e => new Date(e.bedTime).getTime() > cutoff);
+  if (last7.length) {
+    const sorted = last7.slice().sort((a,b) => sleepLen(b) - sleepLen(a));
+    const best = sorted[0], worst = sorted[sorted.length-1];
+    const tagCounts = {};
+    last7.forEach(e => (e.tags || []).forEach(t => tagCounts[t] = (tagCounts[t] || 0) + 1));
+    const topTags = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const totalSleep = last7.reduce((s,e) => s + sleepLen(e), 0);
+    document.getElementById('review').innerHTML = `
+      <div class="row"><div class="label">Nights</div><div class="italic" style="font-size:18px;">${last7.length}</div></div>
+      <div class="row"><div class="label">Total sleep</div><div class="italic grad" style="font-size:20px;">${fmtDur(totalSleep)}</div></div>
+      <div class="row"><div class="label">Best</div><div class="italic" style="font-size:15px;text-align:right;">${fmtDur(sleepLen(best))}<br><span class="label" style="font-size:9px;">${fmtDate(best.bedTime, best.tz)}</span></div></div>
+      <div class="row"><div class="label">Worst</div><div class="italic" style="font-size:15px;text-align:right;">${fmtDur(sleepLen(worst))}<br><span class="label" style="font-size:9px;">${fmtDate(worst.bedTime, worst.tz)}</span></div></div>
+      ${topTags.length ? `<div class="row" style="margin-bottom:0;"><div class="label">Top tags</div><div class="label" style="font-size:10px;">${topTags.map(([t,c])=>`${t} ·${c}`).join(' / ')}</div></div>` : ''}
+    `;
+  } else {
+    document.getElementById('review').innerHTML = '<div class="empty" style="padding:20px;">need at least one night</div>';
+  }
+}
+function sleepLen(e) {
+  const lat = e.latencyMin != null ? e.latencyMin : avgLatency();
+  return Math.max(0, (new Date(e.wakeTime) - new Date(e.bedTime)) - lat * 60000);
+}
+function clockMin(iso) {
+  const d = new Date(iso);
+  return d.getHours() * 60 + d.getMinutes();
+}
+function avgClock(mins) {
+  // shift by 12h to avg around midnight
+  const shifted = mins.map(m => (m + 720) % 1440);
+  const avgS = shifted.reduce((s,x)=>s+x,0) / shifted.length;
+  return ((avgS - 720 + 1440) % 1440);
+}
+function minToClock(m) {
+  const h = Math.floor(m / 60), mn = Math.round(m % 60);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(mn).padStart(2,'0')} ${ampm}`;
+}
+function consistencyScore(entries) {
+  const mins = entries.map(e => (clockMin(e.bedTime) + 720) % 1440);
+  const mean = mins.reduce((s,x)=>s+x,0) / mins.length;
+  const variance = mins.reduce((s,x)=>s+(x-mean)**2,0) / mins.length;
+  const stdMin = Math.sqrt(variance);
+  // 0 stddev = 100, 120min stddev = 0
+  return Math.max(0, Math.round(100 - (stdMin / 120) * 100));
+}
+
+// SETTINGS
+function exportData() {
+  const payload = {
+    app: 'zzz',
+    schema: 1,
+    exportedAt: new Date().toISOString(),
+    entryCount: (data.entries || []).length,
+    data: data
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `zzz-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  vibe(20);
+}
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      // Accept both wrapped (new) and bare (legacy) formats
+      let incoming;
+      let exportedAt = null;
+      if (parsed && parsed.data && parsed.app === 'zzz') {
+        incoming = parsed.data;
+        exportedAt = parsed.exportedAt || null;
+      } else if (parsed && Array.isArray(parsed.entries)) {
+        // legacy export: bare data object (pre-schema)
+        incoming = parsed;
+        exportedAt = parsed.exportedAt || null;
+      } else {
+        alert('That file doesn\'t look like a zzz export.');
+        return;
+      }
+      if (!Array.isArray(incoming.entries)) {
+        alert('Import failed: missing entries array.');
+        return;
+      }
+      const n = incoming.entries.length;
+      const existing = (data.entries || []).length;
+      const when = exportedAt ? new Date(exportedAt).toLocaleString() : 'unknown date';
+      const msg = `Replace all current data?\n\n` +
+        `Import: ${n} night${n===1?'':'s'} (exported ${when})\n` +
+        `Current: ${existing} night${existing===1?'':'s'}\n\n` +
+        `Your existing data will be erased.`;
+      if (!confirm(msg)) return;
+      // normalize so all required fields exist
+      data = {
+        entries: incoming.entries,
+        current: incoming.current || null,
+        settings: Object.assign(
+          { captureLocation: false, chartRange: 7 },
+          incoming.settings || {}
+        ),
+        placeCache: incoming.placeCache || {}
+      };
+      save();
+      vibe([20, 40, 80]);
+      alert(`Imported ${n} night${n===1?'':'s'}.`);
+      renderHome();
+      renderHistory();
+      renderSettings();
+    } catch (e) {
+      alert('Import failed: ' + (e.message || 'invalid JSON'));
+    }
+  };
+  input.click();
+}
+// TRAVEL
+function haversineKm(a, b) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const x = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+function groupStays() {
+  // Build a chronological list of nights with location, then collapse consecutive same-place nights.
+  const all = data.entries
+    .filter(e => typeof e.lat === 'number' && typeof e.lng === 'number')
+    .slice()
+    .sort((a,b) => new Date(a.bedTime) - new Date(b.bedTime));
+  const stays = [];
+  all.forEach(e => {
+    const prev = stays[stays.length - 1];
+    const sameAsPrev = prev && (
+      (prev.place && e.place && prev.place === e.place) ||
+      (typeof prev.lat === 'number' && haversineKm({lat: prev.lat, lng: prev.lng}, {lat: e.lat, lng: e.lng}) < 25)
+    );
+    if (sameAsPrev) {
+      prev.entries.push(e);
+      prev.endTime = e.wakeTime || e.bedTime;
+    } else {
+      stays.push({
+        place: e.place || null,
+        lat: e.lat, lng: e.lng,
+        startTime: e.bedTime,
+        endTime: e.wakeTime || e.bedTime,
+        entries: [e],
+      });
+    }
+  });
+  // Tag the most recent stay as "current" if it includes the active sleep (data.current) or its last entry was today/yesterday
+  const last = stays[stays.length - 1];
+  if (last) {
+    if (data.current && typeof data.current.lat === 'number') {
+      const sameAsLast = (last.place && data.current.place && last.place === data.current.place) ||
+        haversineKm({lat: last.lat, lng: last.lng}, {lat: data.current.lat, lng: data.current.lng}) < 25;
+      if (sameAsLast) {
+        last.current = true;
+        last.endTime = new Date().toISOString();
+      } else {
+        // pending stay
+        stays.push({
+          place: data.current.place || null,
+          lat: data.current.lat, lng: data.current.lng,
+          startTime: data.current.bedTime,
+          endTime: new Date().toISOString(),
+          entries: [],
+          current: true,
+        });
+      }
+    } else {
+      const lastNight = new Date(last.endTime).getTime();
+      if (Date.now() - lastNight < 36 * 3600 * 1000) last.current = true;
+    }
+  } else if (data.current && typeof data.current.lat === 'number') {
+    stays.push({
+      place: data.current.place || null,
+      lat: data.current.lat, lng: data.current.lng,
+      startTime: data.current.bedTime,
+      endTime: new Date().toISOString(),
+      entries: [],
+      current: true,
+    });
+  }
+  return stays.reverse();
+}
+function fmtStayDate(iso, tz) {
+  try {
+    return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: tz });
+  } catch (e) { return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' }); }
+}
+function renderTravel() {
+  const target = document.getElementById('travelBody');
+  const enabled = data.settings && data.settings.captureLocation;
+  const withLoc = data.entries.filter(e => typeof e.lat === 'number');
+  if (!enabled && !withLoc.length) {
+    target.innerHTML = `<div class="travel-empty">
+      <div class="lead italic">Where you sleep,<br>where you've been.</div>
+      <div>Enable location capture and Zzz will quietly log your sleep coordinates and turn them into a clean map of your travels.</div>
+      <button class="travel-cta" id="travelEnable">Enable location</button>
+    </div>`;
+    document.getElementById('travelEnable').addEventListener('click', async () => {
+      try {
+        await getPosition();
+        data.settings = data.settings || {};
+        data.settings.captureLocation = true;
+        save();
+        if (data.current) captureLocationFor(data.current);
+        renderTravel();
+        vibe([20, 40, 20]);
+      } catch (e) {
+        alert('Location denied or unavailable. You can enable it later in Settings.');
+      }
+    });
+    return;
+  }
+  // Backfill any stale entries that have lat/lng but no place name
+  withLoc.filter(e => !e.place).forEach(e => backfillPlaceForEntry(e));
+
+  const stays = groupStays();
+  if (!stays.length) {
+    target.innerHTML = `<div class="travel-empty">
+      <div class="lead italic">No locations yet.</div>
+      <div>Next time you tap to sleep, Zzz will save where you were. Stays will show up here.</div>
+    </div>`;
+    return;
+  }
+  const totalNights = stays.reduce((s, st) => s + st.entries.filter(e => e.wakeTime).length, 0);
+  const places = new Set(stays.map(s => s.place).filter(Boolean));
+  const summary = `<div class="travel-summary"><em>${stays.length}</em> ${stays.length === 1 ? 'stay' : 'stays'} · <em>${places.size}</em> ${places.size === 1 ? 'place' : 'places'} · <em>${totalNights}</em> ${totalNights === 1 ? 'night' : 'nights'} logged</div>`;
+  const actions = `<div class="travel-actions"><button class="primary" id="openMapBtn">◉ Open map</button></div>`;
+  const list = stays.map(st => {
+    const startStr = fmtStayDate(st.startTime, st.entries[0] ? st.entries[0].tz : null);
+    const endStr = st.current ? 'present' : fmtStayDate(st.endTime, st.entries[st.entries.length - 1] ? st.entries[st.entries.length - 1].wakeTz || st.entries[st.entries.length - 1].tz : null);
+    const nights = st.entries.filter(e => e.wakeTime).length + (st.current && data.current ? 1 : 0);
+    const place = st.place || `${st.lat.toFixed(2)}, ${st.lng.toFixed(2)}`;
+    const completed = st.entries.filter(e => e.wakeTime);
+    const avgQual = completed.length ? completed.filter(e => e.quality).reduce((s,e)=>s+e.quality,0) / Math.max(1, completed.filter(e=>e.quality).length) : 0;
+    const qDots = avgQual ? `· avg <span class="qd">${[1,2,3,4,5].map(n => `<span class="${avgQual >= n - 0.4 ? 'on' : ''}"></span>`).join('')}</span>` : '';
+    const totalSleep = completed.reduce((s,e) => s + sleepLen(e), 0);
+    const sleepStr = totalSleep ? fmtDur(totalSleep) + ' total' : '';
+    return `<div class="stay${st.current ? ' current' : ''}" data-stay-lat="${st.lat}" data-stay-lng="${st.lng}">
+      <div class="stay-place">${st.place ? `<em>${escapeHtml(st.place.split(',')[0])}</em>${st.place.includes(',') ? ', ' + escapeHtml(st.place.split(',').slice(1).join(',').trim()) : ''}` : `<em>Unknown place</em>`}</div>
+      <div class="stay-dates">${startStr} – ${endStr}<span class="nights">${nights} night${nights === 1 ? '' : 's'}</span></div>
+      <div class="stay-meta">${sleepStr ? sleepStr : ''}${qDots ? ' ' + qDots : ''}</div>
+    </div>`;
+  }).join('');
+  target.innerHTML = summary + actions + list;
+  document.getElementById('openMapBtn').addEventListener('click', () => openMap());
+  document.querySelectorAll('.stay').forEach(s => {
+    s.addEventListener('click', () => {
+      const lat = parseFloat(s.dataset.stayLat), lng = parseFloat(s.dataset.stayLng);
+      openMap({ lat, lng });
+    });
+  });
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// DETAIL SHEET (tap a chart bar)
+let detailId = null;
+function openDetail(id) {
+  detailId = id;
+  vibe(15);
+  let html = '';
+  if (id === '__current') {
+    if (!data.current) return;
+    const ms = Date.now() - new Date(data.current.bedTime).getTime();
+    const place = data.current.place || (typeof data.current.lat === 'number' ? `${data.current.lat.toFixed(2)}, ${data.current.lng.toFixed(2)}` : null);
+    html = `
+      <div class="detail-head">
+        <div class="detail-pill">In bed now</div>
+        <h2 class="detail-title">${fmtDate(data.current.bedTime, data.current.tz)}</h2>
+        ${place ? `<div class="detail-place">${escapeHtml(place)}</div>` : ''}
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Bed</div>
+        <div class="detail-val italic">${fmtTime(data.current.bedTime, data.current.tz)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Elapsed</div>
+        <div class="detail-val italic grad">${fmtDur(ms)}</div>
+      </div>
+      <div class="detail-note italic">Hold the big button to wake.</div>
+    `;
+    document.getElementById('detailBody').innerHTML = html;
+    document.getElementById('detailEdit').style.display = 'none';
+  } else {
+    const e = data.entries.find(x => x.id === id);
+    if (!e) return;
+    const inBed = new Date(e.wakeTime) - new Date(e.bedTime);
+    const lat = e.latencyMin != null ? e.latencyMin : avgLatency();
+    const sleep = Math.max(0, inBed - lat * 60000);
+    const qDots = [1,2,3,4,5].map(n => `<span class="${e.quality && e.quality>=n ? 'on' : ''}"></span>`).join('');
+    const place = e.place || (typeof e.lat === 'number' ? `${e.lat.toFixed(2)}, ${e.lng.toFixed(2)}` : null);
+    const tz1 = e.tz, tz2 = e.wakeTz || e.tz;
+    const tzDiff = tz1 !== tz2;
+    html = `
+      <div class="detail-head">
+        <div class="detail-pill">Night</div>
+        <h2 class="detail-title">${fmtDate(e.bedTime, e.tz)}</h2>
+        ${place ? `<div class="detail-place">◉ ${escapeHtml(place)}</div>` : ''}
+      </div>
+      <div class="detail-row big">
+        <div class="detail-lbl">Slept ${e.latencyMin == null ? '<span style="color:var(--muted);">(est)</span>' : ''}</div>
+        <div class="detail-val italic grad" style="font-size:30px;">${fmtDur(sleep)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">In bed</div>
+        <div class="detail-val">${fmtDur(inBed)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Bed → wake</div>
+        <div class="detail-val">${fmtTime(e.bedTime, tz1)}${tzDiff ? `<span class="detail-tz"> ${shortTz(tz1)}</span>` : ''} → ${fmtTime(e.wakeTime, tz2)}${tzDiff ? `<span class="detail-tz"> ${shortTz(tz2)}</span>` : ''}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Latency</div>
+        <div class="detail-val">${lat} min${e.latencyEstimated ? ' <span style="color:var(--muted);font-size:11px;">· estimated</span>' : ''}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Quality</div>
+        <div class="detail-val"><span class="quality-dots">${qDots}</span></div>
+      </div>
+      ${e.tags && e.tags.length ? `
+        <div class="detail-row" style="align-items:flex-start;">
+          <div class="detail-lbl">Tags</div>
+          <div class="detail-val" style="text-align:right;">
+            <div class="detail-tags">${e.tags.map(t => `<span class="detail-chip">${escapeHtml(t)}</span>`).join('')}</div>
+          </div>
+        </div>
+      ` : ''}
+      ${e.note ? `<div class="detail-note italic">${escapeHtml(e.note)}</div>` : ''}
+    `;
+    document.getElementById('detailBody').innerHTML = html;
+    document.getElementById('detailEdit').style.display = '';
+  }
+  document.getElementById('detailModal').classList.add('show');
+}
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('show');
+  detailId = null;
+}
+function shortTz(tz) {
+  if (!tz) return '';
+  const parts = tz.split('/');
+  return parts[parts.length - 1].replace(/_/g, ' ');
+}
+document.getElementById('detailClose').addEventListener('click', closeDetail);
+document.getElementById('detailEdit').addEventListener('click', () => {
+  if (!detailId || detailId === '__current') return;
+  const id = detailId;
+  closeDetail();
+  setTimeout(() => openEdit(id), 200);
+});
+document.getElementById('detailModal').addEventListener('click', (e) => {
+  if (e.target.id === 'detailModal') closeDetail();
+});
+
+// MAP OVERLAY
+let mapInst = null, mapLayer = null;
+function openMap(focus) {
+  document.getElementById('mapOverlay').classList.add('show');
+  vibe(15);
+  setTimeout(() => initMap(focus), 50);
+}
+function initMap(focus) {
+  if (typeof L === 'undefined') return;
+  const stays = groupStays();
+  if (!mapInst) {
+    mapInst = L.map('map', { zoomControl: true, attributionControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(mapInst);
+    mapLayer = L.layerGroup().addTo(mapInst);
+  }
+  mapInst.invalidateSize();
+  mapLayer.clearLayers();
+
+  if (!stays.length) {
+    mapInst.setView([13.7563, 100.5018], 4); // bangkok-ish default
+    document.getElementById('mapTitle').innerHTML = 'No stays yet';
+    return;
+  }
+  // pins
+  const points = [];
+  // chronological order for the journey line: stays were reversed (newest first), so reverse back
+  const chrono = stays.slice().reverse();
+  chrono.forEach(st => {
+    const isCurrent = st.current;
+    const pin = L.divIcon({ className: '', html: `<div class="zzz-pin${isCurrent ? ' current' : ''}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+    const m = L.marker([st.lat, st.lng], { icon: pin }).addTo(mapLayer);
+    const nights = st.entries.filter(e => e.wakeTime).length + (st.current && data.current ? 1 : 0);
+    const startStr = fmtStayDate(st.startTime, st.entries[0] ? st.entries[0].tz : null);
+    const endStr = st.current ? 'present' : fmtStayDate(st.endTime, st.entries[st.entries.length - 1] ? st.entries[st.entries.length - 1].wakeTz || st.entries[st.entries.length - 1].tz : null);
+    m.bindPopup(`<div class="pop-title">${st.place ? escapeHtml(st.place) : 'Unknown'}</div><div class="pop-meta">${startStr} – ${endStr} · ${nights} night${nights === 1 ? '' : 's'}</div>`);
+    points.push([st.lat, st.lng]);
+  });
+  // journey line
+  if (points.length > 1) {
+    L.polyline(points, { color: '#8b6cff', weight: 2, opacity: 0.6, dashArray: '4 6' }).addTo(mapLayer);
+  }
+  // fit
+  if (focus) {
+    mapInst.setView([focus.lat, focus.lng], 11);
+  } else if (points.length === 1) {
+    mapInst.setView(points[0], 11);
+  } else {
+    mapInst.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 11 });
+  }
+  const places = new Set(stays.map(s => s.place).filter(Boolean));
+  document.getElementById('mapTitle').innerHTML = `<em>${stays.length}</em> ${stays.length === 1 ? 'stay' : 'stays'} · <em>${places.size}</em> ${places.size === 1 ? 'place' : 'places'}`;
+}
+document.getElementById('mapClose').addEventListener('click', () => {
+  document.getElementById('mapOverlay').classList.remove('show');
+  vibe(10);
+});
+
+// SETTINGS
+function renderSettings() {
+  const tgl = document.getElementById('locToggle');
+  if (tgl) tgl.classList.toggle('on', !!(data.settings && data.settings.captureLocation));
+}
+
+function resetAll() {
+  if (!confirm('Erase all sleep data?')) return;
+  if (!confirm('Really? This cannot be undone.')) return;
+  data = { entries: [], current: null, settings: data.settings || {}, placeCache: {} };
+  save();
+  renderHome();
+  renderHistory();
+  vibe([20, 60, 20]);
+}
+
+document.getElementById('locToggle').addEventListener('click', async () => {
+  const cur = !!(data.settings && data.settings.captureLocation);
+  if (!cur) {
+    try {
+      await getPosition();
+      data.settings = data.settings || {};
+      data.settings.captureLocation = true;
+      save();
+      renderSettings();
+      if (data.current) captureLocationFor(data.current);
+      vibe([15, 30, 15]);
+    } catch (e) {
+      alert('Location denied or unavailable.');
+    }
+  } else {
+    data.settings.captureLocation = false;
+    save();
+    renderSettings();
+    vibe(10);
+  }
+});
+
+renderHome();
+renderSettings();
+</script>
+</body>
+</html>
