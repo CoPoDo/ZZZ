@@ -2834,7 +2834,11 @@ function entryScore(e) {
   let durScore = (sl / goalMs) * 100;
   if (durScore > 100) durScore = 100 - (durScore - 100) * 0.5; // mild penalty for >goal (oversleep)
   durScore = Math.max(0, Math.min(100, durScore));
-  const q = e.quality ? (e.quality / 5) * 100 : 60; // neutral if no quality
+  // Clamp quality contribution: imported / hand-edited data could carry a
+  // value outside the 1..5 range, which would otherwise push the total
+  // past 100 and break the score-ring stroke-dasharray.
+  const qVal = e.quality ? Math.max(1, Math.min(5, e.quality)) : 0;
+  const q = qVal ? (qVal / 5) * 100 : 60; // neutral if no quality
   return Math.round(durScore * 0.6 + q * 0.4);
 }
 function avgScore(entries) {
