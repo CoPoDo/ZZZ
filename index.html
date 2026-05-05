@@ -1878,6 +1878,10 @@ function renderHome() {
   streakEl.innerHTML = chips;
 
   // First-time onboarding tip (zero entries, tip not yet dismissed)
+  // Always remove any prior tip first, otherwise repeated renderHome() calls
+  // (visibility change, reminder timer, etc.) would stack duplicate cards.
+  const oldTip = document.querySelector('#view-home .first-tip');
+  if (oldTip) oldTip.remove();
   if (!total && !sleeping && !data.settings.tipDismissed) {
     streakEl.insertAdjacentHTML('afterend',
       `<div class="first-tip">
@@ -2068,11 +2072,16 @@ function closeMorning(saveIt) {
 
 // HISTORY
 function renderHistory() {
-  // Filter chips: top 5 used tags + quality 5/1
+  // Filter chips: top 6 used tags + quality 5/1.
+  // Always include the currently-active tag filter so it can be deselected,
+  // even if it's no longer in the top 6.
   const filterRow = document.getElementById('historyFilters');
   const tagCounts = {};
   data.entries.forEach(e => (e.tags || []).forEach(t => tagCounts[t] = (tagCounts[t] || 0) + 1));
   const topTags = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x => x[0]);
+  if (historyFilter.tag && !topTags.includes(historyFilter.tag)) {
+    topTags.push(historyFilter.tag);
+  }
   let chips = '';
   topTags.forEach(t => {
     chips += `<button class="tag ${historyFilter.tag === t ? 'on' : ''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`;
@@ -2123,15 +2132,17 @@ function renderHistory() {
 
   // Group by month
   entries.sort((a,b) => new Date(b.bedTime) - new Date(a.bedTime));
-  const monthFmt = new Intl.DateTimeFormat([], { month: 'long', year: 'numeric' });
-  let lastMonth = '';
+  const monthOnlyFmt = new Intl.DateTimeFormat([], { month: 'long' });
+  let lastMonthKey = '';
   let html = '';
   entries.forEach(e => {
-    const month = monthFmt.format(new Date(e.bedTime));
-    if (month !== lastMonth) {
-      const [m, y] = month.split(' ');
-      html += `<div class="history-month"><em>${m}</em> ${y}</div>`;
-      lastMonth = month;
+    const dt = new Date(e.bedTime);
+    const monthName = monthOnlyFmt.format(dt);
+    const year = dt.getFullYear();
+    const monthKey = year + '-' + dt.getMonth();
+    if (monthKey !== lastMonthKey) {
+      html += `<div class="history-month"><em>${escapeHtml(monthName)}</em> ${year}</div>`;
+      lastMonthKey = monthKey;
     }
     const inBed = new Date(e.wakeTime) - new Date(e.bedTime);
     const lat = e.latencyMin != null ? e.latencyMin : avgLatency();
@@ -3032,12 +3043,11 @@ function importData() {
       data = {
         entries: incoming.entries,
         current: incoming.current || null,
-        settings: Object.assign(
-          { captureLocation: false, chartRange: 7 },
-          incoming.settings || {}
-        ),
+        settings: Object.assign({}, DEFAULT_SETTINGS, incoming.settings || {}),
         placeCache: incoming.placeCache || {}
       };
+      if (!Array.isArray(data.settings.customTags)) data.settings.customTags = [];
+      if (!Array.isArray(data.settings.milestones)) data.settings.milestones = [];
       save();
       vibe([20, 40, 80]);
       alert(`Imported ${n} night${n===1?'':'s'}.`);
@@ -3424,7 +3434,13 @@ function renderTagManager() {
 function resetAll() {
   if (!confirm('Erase all sleep data?')) return;
   if (!confirm('Really? This cannot be undone.')) return;
-  data = { entries: [], current: null, settings: data.settings || {}, placeCache: {} };
+  // Preserve user settings, but drop entry-derived state (milestones).
+  const keptSettings = Object.assign({}, data.settings || {}, { milestones: [], lastReminded: 0 });
+  data = { entries: [], current: null, settings: keptSettings, placeCache: {} };
+  // Clear any stale filter / search state so the empty list doesn't show "no matches".
+  historyFilter = { search: '', tag: null, quality: null };
+  const searchInput = document.getElementById('historySearch');
+  if (searchInput) searchInput.value = '';
   save();
   renderHome();
   renderHistory();
