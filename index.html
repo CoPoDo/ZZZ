@@ -2222,14 +2222,17 @@ function openEdit(id) {
   editingId = id;
   let e;
   if (id === '__new') {
+    // Default to the user's goal duration anchored on a 7am wake — feels
+    // like a reasonable starting point that they can adjust.
     const wake = new Date();
     wake.setHours(7, 0, 0, 0);
-    const bed = new Date(wake.getTime() - 8 * 3600 * 1000);
+    const goalMs = (data.settings.goalMin || 480) * 60000;
+    const bed = new Date(wake.getTime() - goalMs);
     e = {
       id: '__new',
       bedTime: bed.toISOString(),
       wakeTime: wake.toISOString(),
-      latencyMin: 15,
+      latencyMin: avgLatency(),
       latencyEstimated: false,
       quality: null,
       note: '',
