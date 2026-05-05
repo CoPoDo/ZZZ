@@ -1710,6 +1710,13 @@ function fmtDur(ms) {
   const h = Math.floor(m / 60);
   return `${h}h ${m % 60}m`;
 }
+// Formats a signed delta in ms; collapses anything under a minute to "0m"
+// so we never render "+—" or "−—" when sleep happens to equal goal exactly.
+function fmtDelta(ms) {
+  if (Math.abs(ms) < 60000) return '0m';
+  const sign = ms >= 0 ? '+' : '−';
+  return sign + fmtDur(Math.abs(ms));
+}
 function avgLatency() {
   const recent = data.entries.filter(e => e.latencyMin != null && !e.latencyEstimated).slice(-14);
   if (!recent.length) return 15;
@@ -1960,9 +1967,10 @@ function renderHome() {
     const pct = Math.min(100, Math.round((sleep / goal) * 100));
     const under = sleep < goal;
     const delta = sleep - goal;
-    const deltaStr = delta >= 0
-      ? `+${fmtDur(delta)} over goal`
-      : `${fmtDur(-delta)} under goal`;
+    let deltaStr;
+    if (Math.abs(delta) < 60000) deltaStr = 'on goal';
+    else if (delta > 0) deltaStr = `+${fmtDur(delta)} over goal`;
+    else deltaStr = `${fmtDur(-delta)} under goal`;
     target.innerHTML = `
       <div class="label section-label">${isToday ? 'Last night' : 'Most recent'}</div>
       <div class="card tappable" data-detail-id="${last.id}">
@@ -2161,9 +2169,8 @@ function renderHistory() {
     const tagStr = (e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(escapeHtml).join(' · ')}</div>` : '';
     const goalMs = (data.settings.goalMin || 480) * 60000;
     const delta = sleep - goalMs;
-    const deltaCls = delta >= 0 ? '' : 'under';
-    const deltaSign = delta >= 0 ? '+' : '−';
-    const deltaStr = `<span class="entry-delta ${deltaCls}">${deltaSign}${fmtDur(Math.abs(delta))}</span>`;
+    const deltaCls = delta < -60000 ? 'under' : '';
+    const deltaStr = `<span class="entry-delta ${deltaCls}">${fmtDelta(delta)}</span>`;
     html += `<div class="entry" onclick="openEdit('${e.id}')">
       <div class="entry-main">
         <div class="entry-date">${fmtDate(e.bedTime, e.tz)}</div>
@@ -2367,8 +2374,7 @@ function renderTrend() {
     deltaHtml = '<span class="trend-delta">stable</span>';
   } else {
     const cls = totalShift > 0 ? 'up' : 'dn';
-    const sign = totalShift > 0 ? '+' : '−';
-    deltaHtml = `<span class="trend-delta ${cls}">${sign}${fmtDur(Math.abs(totalShift))} over ${n} nights</span>`;
+    deltaHtml = `<span class="trend-delta ${cls}">${fmtDelta(totalShift)} over ${n} nights</span>`;
   }
   target.innerHTML = `
     <div class="card trend-card">
@@ -2586,9 +2592,8 @@ function renderStats() {
   let avgDeltaHtml = '';
   if (last7.length && prev7.length) {
     const delta = avgSleep - prevAvg;
-    const cls = delta >= 0 ? 'up' : 'dn';
-    const sign = delta >= 0 ? '+' : '−';
-    avgDeltaHtml = `<div class="delta ${cls}">${sign}${fmtDur(Math.abs(delta))} vs prev wk</div>`;
+    const cls = delta < -60000 ? 'dn' : (delta > 60000 ? 'up' : '');
+    avgDeltaHtml = `<div class="delta ${cls}">${fmtDelta(delta)} vs prev wk</div>`;
   }
 
   document.getElementById('stats').innerHTML = `
@@ -3336,11 +3341,10 @@ function openDetail(id) {
       ${(() => {
         const goalMs = (data.settings.goalMin || 480) * 60000;
         const dlt = sleep - goalMs;
-        const ok = dlt >= 0;
-        const sign = ok ? '+' : '−';
+        const ok = dlt >= -60000;
         return `<div class="detail-row">
           <div class="detail-lbl">Vs goal</div>
-          <div class="detail-val ${ok ? 'grad' : ''}" style="${ok ? '' : 'color:#ffa57a;'}">${sign}${fmtDur(Math.abs(dlt))}</div>
+          <div class="detail-val ${ok ? 'grad' : ''}" style="${ok ? '' : 'color:#ffa57a;'}">${fmtDelta(dlt)}</div>
         </div>`;
       })()}
       ${e.tags && e.tags.length ? `
