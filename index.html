@@ -1989,8 +1989,7 @@ function renderHome() {
       if (min <= 0 && min > -120) {
         remEl.innerHTML = `<div class="reminder-card now">Time to wind down. <span class="grad">${data.settings.reminderTime}</span> bedtime now.<div class="label">wake at ${wakeStr} for ${fmtDur(goalMs)} · hold the button when you're in bed</div></div>`;
       } else if (min > 0 && min <= 120) {
-        const h = Math.floor(min / 60), m = min % 60;
-        const dur = h && m ? `${h}h ${m}m` : (h ? `${h}h` : `${m}m`);
+        const dur = fmtDur(min * 60000);
         remEl.innerHTML = `<div class="reminder-card">Bedtime in <span class="grad">${dur}</span><div class="label">target ${data.settings.reminderTime} · wake at ${wakeStr} for ${fmtDur(goalMs)}</div></div>`;
       }
     }
@@ -2556,7 +2555,8 @@ function renderAutoInsights() {
     if (diff < -720) diff += 1440;
     if (Math.abs(diff) >= 20) {
       const dir = diff > 0 ? 'later' : 'earlier';
-      insights.push({ icon: '◔', text: `Your bedtime has drifted <em>${Math.abs(Math.round(diff))}m ${dir}</em> this week.` });
+      // Use fmtDur so a big drift renders as "1h 15m later" instead of "75m later".
+      insights.push({ icon: '◔', text: `Your bedtime has drifted <em>${fmtDur(Math.abs(Math.round(diff)) * 60000)} ${dir}</em> this week.` });
     }
   }
 
