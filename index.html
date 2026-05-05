@@ -2286,7 +2286,11 @@ function openEdit(id) {
     document.getElementById('editDeleteBtn').style.display = 'none';
   } else {
     e = data.entries.find(x => x.id === id);
-    if (!e) return;
+    if (!e) {
+      // Cross-tab delete or stale chart-bar tap — give the user some feedback.
+      toast('entry no longer exists');
+      return;
+    }
     document.getElementById('editTitle').innerHTML = 'Edit <em>night</em>';
     document.getElementById('editDeleteBtn').style.display = '';
   }
@@ -3342,7 +3346,10 @@ function openDetail(id) {
   vibe(15);
   let html = '';
   if (id === '__current') {
-    if (!data.current) return;
+    if (!data.current) {
+      toast('not in bed right now');
+      return;
+    }
     const ms = Date.now() - new Date(data.current.bedTime).getTime();
     const elapsedStr = ms < 60000 ? '<1m' : fmtDur(ms);
     const place = data.current.place || (typeof data.current.lat === 'number' ? `${data.current.lat.toFixed(2)}, ${data.current.lng.toFixed(2)}` : null);
@@ -3386,7 +3393,10 @@ function openDetail(id) {
     }
   } else {
     const e = data.entries.find(x => x.id === id);
-    if (!e) return;
+    if (!e) {
+      toast('entry no longer exists');
+      return;
+    }
     const inBed = new Date(e.wakeTime) - new Date(e.bedTime);
     const lat = e.latencyMin != null ? e.latencyMin : avgLatency();
     const sleep = Math.max(0, inBed - lat * 60000);
