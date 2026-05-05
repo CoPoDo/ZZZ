@@ -2712,7 +2712,8 @@ function consistencyScore(entries) {
 
 // Streak: consecutive nights ending today or yesterday with at least one entry
 function streak() {
-  if (!data.entries.length) return 0;
+  // Either a logged entry or an in-progress sleep counts toward the streak.
+  if (!data.entries.length && !data.current) return 0;
   // Build a set of YYYY-MM-DD strings (local) using wakeTime (the morning the entry "belongs to")
   const dates = new Set();
   data.entries.filter(e => e.wakeTime).forEach(e => {
@@ -3321,14 +3322,16 @@ function openDetail(id) {
         <div class="detail-lbl">Score</div>
         <div class="detail-val italic grad">${entryScore(e)}</div>
       </div>
-      <div class="detail-row">
-        <div class="detail-lbl">Vs goal</div>
-        <div class="detail-val ${sleep >= (data.settings.goalMin || 480) * 60000 ? 'grad' : ''}" style="color:${sleep >= (data.settings.goalMin || 480) * 60000 ? '' : '#ffa57a'};">${(() => {
-          const g = (data.settings.goalMin || 480) * 60000;
-          const d = sleep - g;
-          return (d >= 0 ? '+' : '−') + fmtDur(Math.abs(d));
-        })()}</div>
-      </div>
+      ${(() => {
+        const goalMs = (data.settings.goalMin || 480) * 60000;
+        const dlt = sleep - goalMs;
+        const ok = dlt >= 0;
+        const sign = ok ? '+' : '−';
+        return `<div class="detail-row">
+          <div class="detail-lbl">Vs goal</div>
+          <div class="detail-val ${ok ? 'grad' : ''}" style="${ok ? '' : 'color:#ffa57a;'}">${sign}${fmtDur(Math.abs(dlt))}</div>
+        </div>`;
+      })()}
       ${e.tags && e.tags.length ? `
         <div class="detail-row" style="align-items:flex-start;">
           <div class="detail-lbl">Tags</div>
@@ -3626,6 +3629,28 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && document.getElementById('view-home').classList.contains('active')) {
     renderHome();
   }
+});
+
+// Cross-tab sync: if the user has the app open in another tab and edits there,
+// reflect the new state in this tab too. The storage event only fires in *other*
+// tabs (not the one that wrote), which is exactly what we want.
+window.addEventListener('storage', (ev) => {
+  if (ev.key !== STORE_KEY || !ev.newValue) return;
+  try {
+    const parsed = JSON.parse(ev.newValue);
+    if (!parsed || !Array.isArray(parsed.entries)) return;
+    parsed.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings || {});
+    if (!Array.isArray(parsed.settings.customTags)) parsed.settings.customTags = [];
+    if (!Array.isArray(parsed.settings.milestones)) parsed.settings.milestones = [];
+    if (!parsed.placeCache) parsed.placeCache = {};
+    data = parsed;
+    // Re-render whichever view is active.
+    if (document.getElementById('view-home').classList.contains('active')) renderHome();
+    else if (document.getElementById('view-history').classList.contains('active')) renderHistory();
+    else if (document.getElementById('view-insights').classList.contains('active')) renderInsights();
+    else if (document.getElementById('view-travel').classList.contains('active')) renderTravel();
+    else if (document.getElementById('view-settings').classList.contains('active')) renderSettings();
+  } catch (e) {}
 });
 
 renderHome();
