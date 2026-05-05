@@ -1939,12 +1939,21 @@ function renderHome() {
   if (!sleeping && data.settings.reminderEnabled && data.settings.reminderTime) {
     const min = minutesUntilReminder();
     if (min != null) {
+      // Compute the projected wake time if you follow the reminder bedtime.
+      const goalMs = (data.settings.goalMin || 480) * 60000;
+      const latMs = avgLatency() * 60000;
+      const [rh, rm] = data.settings.reminderTime.split(':').map(Number);
+      const bedTarget = new Date();
+      bedTarget.setHours(rh, rm, 0, 0);
+      if (bedTarget < new Date() && min > 0) bedTarget.setDate(bedTarget.getDate() + 1);
+      const wakeAt = new Date(bedTarget.getTime() + goalMs + latMs);
+      const wakeStr = wakeAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
       if (min <= 0 && min > -120) {
-        remEl.innerHTML = `<div class="reminder-card now">Time to wind down. <span class="grad">${data.settings.reminderTime}</span> bedtime now.<div class="label">hold the button when you're in bed</div></div>`;
+        remEl.innerHTML = `<div class="reminder-card now">Time to wind down. <span class="grad">${data.settings.reminderTime}</span> bedtime now.<div class="label">wake at ${wakeStr} for ${fmtDur(goalMs)} · hold the button when you're in bed</div></div>`;
       } else if (min > 0 && min <= 120) {
         const h = Math.floor(min / 60), m = min % 60;
-        const dur = h ? `${h}h ${m}m` : `${m}m`;
-        remEl.innerHTML = `<div class="reminder-card">Bedtime in <span class="grad">${dur}</span><div class="label">target ${data.settings.reminderTime}</div></div>`;
+        const dur = h && m ? `${h}h ${m}m` : (h ? `${h}h` : `${m}m`);
+        remEl.innerHTML = `<div class="reminder-card">Bedtime in <span class="grad">${dur}</span><div class="label">target ${data.settings.reminderTime} · wake at ${wakeStr} for ${fmtDur(goalMs)}</div></div>`;
       }
     }
   }
