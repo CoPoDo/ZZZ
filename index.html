@@ -2206,8 +2206,15 @@ function openEdit(id) {
     document.getElementById('editTitle').innerHTML = 'Edit <em>night</em>';
     document.getElementById('editDeleteBtn').style.display = '';
   }
-  // Working draft so we can cancel without mutating the original
-  editDraft = { quality: e.quality || null, tags: [...(e.tags || [])] };
+  // Working draft so we can cancel without mutating the original.
+  // latencyDirty tracks whether the user actually moved the slider — if not,
+  // we preserve the original latencyMin/latencyEstimated so opening + saving
+  // an estimated entry doesn't silently "confirm" the estimate.
+  editDraft = {
+    quality: e.quality || null,
+    tags: [...(e.tags || [])],
+    latencyDirty: false,
+  };
   vibe(15);
   document.getElementById('editBed').value = toLocalInput(e.bedTime);
   document.getElementById('editWake').value = toLocalInput(e.wakeTime);
@@ -2216,6 +2223,7 @@ function openEdit(id) {
   document.getElementById('editLatVal').textContent = `${lat} min` + (e.latencyMin == null ? ' · est' : '');
   document.getElementById('editLat').oninput = (ev) => {
     document.getElementById('editLatVal').textContent = ev.target.value + ' min';
+    editDraft.latencyDirty = true;
   };
   document.querySelectorAll('#editQualRow button').forEach(b => {
     b.classList.toggle('on', editDraft.quality === parseInt(b.dataset.q));
@@ -2267,6 +2275,7 @@ function saveEdit() {
       id: uid(),
       bedTime: bed.toISOString(),
       wakeTime: wake.toISOString(),
+      // Manual entries always take the slider value as truth.
       latencyMin: parseInt(document.getElementById('editLat').value),
       latencyEstimated: false,
       quality: editDraft.quality,
@@ -2284,8 +2293,10 @@ function saveEdit() {
     if (!e) return;
     e.bedTime = bed.toISOString();
     e.wakeTime = wake.toISOString();
-    e.latencyMin = parseInt(document.getElementById('editLat').value);
-    e.latencyEstimated = false;
+    if (editDraft.latencyDirty) {
+      e.latencyMin = parseInt(document.getElementById('editLat').value);
+      e.latencyEstimated = false;
+    }
     e.quality = editDraft.quality;
     e.tags = editDraft.tags;
     e.note = document.getElementById('editNote').value.trim();
