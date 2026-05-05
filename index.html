@@ -1940,7 +1940,7 @@ function renderHome() {
         <div class="goal-line" style="justify-content:center;margin-top:14px;">${goalLine}</div>
         <div class="tap-hint">tap for details · adjust bedtime</div>
       </div>
-      <button class="discard-link" id="discardCurrent">discard · not asleep yet</button>
+      <button class="discard-link" id="discardCurrent">discard this session</button>
     `;
   } else if (last) {
     const lat = last.latencyMin != null ? last.latencyMin : avgLatency();
@@ -2010,7 +2010,8 @@ function openMorning(entry) {
   selectedTags = new Set();
   selectedQual = null;
   const inBed = new Date(entry.wakeTime) - new Date(entry.bedTime);
-  document.getElementById('morningSummary').textContent = `In bed ${fmtDur(inBed)} · ${fmtTime(entry.bedTime, entry.tz)} → ${fmtTime(entry.wakeTime, entry.tz)}`;
+  // Use the wake-tz for the wake time when it differs (e.g. crossed time zones overnight).
+  document.getElementById('morningSummary').textContent = `In bed ${fmtDur(inBed)} · ${fmtTime(entry.bedTime, entry.tz)} → ${fmtTime(entry.wakeTime, entry.wakeTz || entry.tz)}`;
 
   const tagsRow = document.getElementById('tagsRow');
   tagsRow.innerHTML = allTags().map(t => `<button class="tag" data-t="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('');
@@ -2240,6 +2241,13 @@ function saveEdit() {
   const bed = new Date(bedV);
   const wake = new Date(wakeV);
   if (wake <= bed) { toast('wake must be after bedtime'); return; }
+  // Allow a small slack for clock drift, but reject clearly future times
+  // — they'd otherwise sort as "last night" and skew stats.
+  const nowMs = Date.now();
+  if (bed.getTime() > nowMs + 60000) { toast('bedtime is in the future'); return; }
+  if (wake.getTime() > nowMs + 60000) { toast('wake time is in the future'); return; }
+  // Sanity cap: nights longer than 24h are almost certainly a typo.
+  if (wake.getTime() - bed.getTime() > 24 * 3600 * 1000) { toast('that\'s over 24h — check the dates'); return; }
   if (editingId === '__new') {
     const entry = {
       id: uid(),
@@ -2283,6 +2291,7 @@ function deleteEntry() {
   renderHistory();
   renderHome();
   closeEdit();
+  toast('night deleted');
 }
 function closeEdit() {
   document.getElementById('editModal').classList.remove('show');
@@ -3051,9 +3060,16 @@ function importData() {
       save();
       vibe([20, 40, 80]);
       alert(`Imported ${n} night${n===1?'':'s'}.`);
+      // Reset any stale view state and re-render every view, so switching
+      // between tabs after import shows the imported data immediately.
+      historyFilter = { search: '', tag: null, quality: null };
+      const searchInput = document.getElementById('historySearch');
+      if (searchInput) searchInput.value = '';
       renderHome();
       renderHistory();
       renderSettings();
+      renderInsights();
+      renderTravel();
     } catch (e) {
       alert('Import failed: ' + (e.message || 'invalid JSON'));
     }
