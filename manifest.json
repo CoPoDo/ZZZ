@@ -1,0 +1,19 @@
+{
+  "name": "Zzz",
+  "short_name": "Zzz",
+  "description": "A quiet sleep journal — hold to sleep, hold to wake.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0814",
+  "theme_color": "#0a0814",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
