@@ -1675,6 +1675,9 @@ function allTags() {
   return [...set];
 }
 
+function sortEntries(entries) {
+  if (Array.isArray(entries)) entries.sort((a, b) => new Date(a.bedTime) - new Date(b.bedTime));
+}
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -1684,6 +1687,9 @@ function load() {
       parsed.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings || {});
       if (!Array.isArray(parsed.settings.customTags)) parsed.settings.customTags = [];
       if (!parsed.placeCache) parsed.placeCache = {};
+      // Enforce the chronological-ascending invariant — many call sites
+      // (last-night card, trend chart) rely on it.
+      sortEntries(parsed.entries);
       return parsed;
     }
   } catch (e) {}
@@ -2317,7 +2323,7 @@ function saveEdit() {
       wakeTz: curTz(),
     };
     data.entries.push(entry);
-    data.entries.sort((a,b) => new Date(a.bedTime) - new Date(b.bedTime));
+    sortEntries(data.entries);
     toast('night added');
     setTimeout(checkMilestones, 400);
   } else {
@@ -2332,7 +2338,7 @@ function saveEdit() {
     e.quality = editDraft.quality;
     e.tags = editDraft.tags;
     e.note = document.getElementById('editNote').value.trim();
-    data.entries.sort((a,b) => new Date(a.bedTime) - new Date(b.bedTime));
+    sortEntries(data.entries);
     toast('saved');
   }
   save();
@@ -3116,6 +3122,7 @@ function importData() {
       };
       if (!Array.isArray(data.settings.customTags)) data.settings.customTags = [];
       if (!Array.isArray(data.settings.milestones)) data.settings.milestones = [];
+      sortEntries(data.entries);
       save();
       vibe([20, 40, 80]);
       alert(`Imported ${n} night${n===1?'':'s'}.`);
@@ -3686,6 +3693,7 @@ window.addEventListener('storage', (ev) => {
     if (!Array.isArray(parsed.settings.customTags)) parsed.settings.customTags = [];
     if (!Array.isArray(parsed.settings.milestones)) parsed.settings.milestones = [];
     if (!parsed.placeCache) parsed.placeCache = {};
+    sortEntries(parsed.entries);
     data = parsed;
     // Re-render whichever view is active.
     if (document.getElementById('view-home').classList.contains('active')) renderHome();
