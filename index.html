@@ -1718,7 +1718,11 @@ function fmtDur(ms) {
   if (!ms || ms <= 0) return '—';
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
+  const rem = m % 60;
+  // Drop the leading "0h " for short durations so things like a nap or a
+  // brief countdown read "30m" instead of "0h 30m".
+  if (h === 0) return `${rem}m`;
+  return `${h}h ${rem}m`;
 }
 // Formats a signed delta in ms; collapses anything under a minute to "0m"
 // so we never render "+—" or "−—" when sleep happens to equal goal exactly.
