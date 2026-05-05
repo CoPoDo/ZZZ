@@ -2520,9 +2520,14 @@ function renderAutoInsights() {
     .map(([d, arr]) => ({ d: parseInt(d), avg: arr.reduce((s,x)=>s+x,0)/arr.length }));
   if (dowAvgs.length >= 3) {
     dowAvgs.sort((a,b) => b.avg - a.avg);
-    const dnames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const top = dowAvgs[0];
-    insights.push({ icon: '◑', text: `<em>${dnames[top.d]}s</em> are your longest nights — avg ${fmtDur(top.avg)}.` });
+    const overall = dowAvgs.reduce((s, x) => s + x.avg, 0) / dowAvgs.length;
+    // Only surface this if the top day stands out by 30+ minutes vs the
+    // user's overall average — otherwise it's just noise and a non-pattern.
+    if (top.avg - overall >= 30 * 60000) {
+      const dnames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      insights.push({ icon: '◑', text: `<em>${dnames[top.d]}s</em> are your longest nights — avg ${fmtDur(top.avg)}.` });
+    }
   }
 
   // 3) Goal hit rate (last 14 days)
