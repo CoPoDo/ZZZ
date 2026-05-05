@@ -262,6 +262,14 @@ hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   letter-spacing: 0.1em;
   margin-top: 4px;
 }
+.entry-delta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  margin-left: 6px;
+  color: var(--accent-2);
+}
+.entry-delta.under { color: #ffa57a; }
 /* modal */
 .modal-bg {
   position: fixed; inset: 0;
@@ -1481,6 +1489,7 @@ input[type=time] {
       <div id="reminderTimeWrap" style="display:none;margin-top:14px;">
         <div class="label" style="margin-bottom:6px;">Bedtime</div>
         <input type="time" id="reminderTime" value="22:30" style="width:100%;">
+        <div id="notifNote" class="label" style="margin-top:10px;text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;"></div>
       </div>
     </div>
     <div class="label section-label">Tags</div>
@@ -2150,10 +2159,15 @@ function renderHistory() {
     const sleep = Math.max(0, inBed - lat * 60000);
     const qDots = [1,2,3,4,5].map(n => `<span class="${e.quality && e.quality>=n ? 'on' : ''}"></span>`).join('');
     const tagStr = (e.tags && e.tags.length) ? `<div class="entry-tags">${e.tags.map(escapeHtml).join(' · ')}</div>` : '';
+    const goalMs = (data.settings.goalMin || 480) * 60000;
+    const delta = sleep - goalMs;
+    const deltaCls = delta >= 0 ? '' : 'under';
+    const deltaSign = delta >= 0 ? '+' : '−';
+    const deltaStr = `<span class="entry-delta ${deltaCls}">${deltaSign}${fmtDur(Math.abs(delta))}</span>`;
     html += `<div class="entry" onclick="openEdit('${e.id}')">
       <div class="entry-main">
         <div class="entry-date">${fmtDate(e.bedTime, e.tz)}</div>
-        <div class="entry-dur">${fmtDur(sleep)}<span style="font-size:11px;color:var(--muted);font-family:JetBrains Mono;font-style:normal;text-transform:uppercase;letter-spacing:0.1em;"> sleep</span></div>
+        <div class="entry-dur">${fmtDur(sleep)}<span style="font-size:11px;color:var(--muted);font-family:JetBrains Mono;font-style:normal;text-transform:uppercase;letter-spacing:0.1em;"> sleep</span>${deltaStr}</div>
         <div class="entry-times">${fmtTime(e.bedTime, e.tz)} → ${fmtTime(e.wakeTime, e.wakeTz || e.tz)} · ${fmtDur(inBed)} in bed</div>
         ${tagStr}
       </div>
@@ -3303,6 +3317,18 @@ function openDetail(id) {
         <div class="detail-lbl">Quality</div>
         <div class="detail-val"><span class="quality-dots">${qDots}</span></div>
       </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Score</div>
+        <div class="detail-val italic grad">${entryScore(e)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-lbl">Vs goal</div>
+        <div class="detail-val ${sleep >= (data.settings.goalMin || 480) * 60000 ? 'grad' : ''}" style="color:${sleep >= (data.settings.goalMin || 480) * 60000 ? '' : '#ffa57a'};">${(() => {
+          const g = (data.settings.goalMin || 480) * 60000;
+          const d = sleep - g;
+          return (d >= 0 ? '+' : '−') + fmtDur(Math.abs(d));
+        })()}</div>
+      </div>
       ${e.tags && e.tags.length ? `
         <div class="detail-row" style="align-items:flex-start;">
           <div class="detail-lbl">Tags</div>
@@ -3416,6 +3442,20 @@ function renderSettings() {
   if (remTgl) remTgl.classList.toggle('on', enabled);
   if (remTimeWrap) remTimeWrap.style.display = enabled ? '' : 'none';
   if (remTimeInput) remTimeInput.value = data.settings.reminderTime || '22:30';
+  // Surface the actual browser notification permission state — toggle being on
+  // doesn't guarantee the OS will show the notification.
+  const notifNote = document.getElementById('notifNote');
+  if (notifNote) {
+    if (typeof Notification === 'undefined') {
+      notifNote.textContent = 'Your browser doesn\'t support notifications. The in-app card will still show.';
+    } else if (Notification.permission === 'denied') {
+      notifNote.textContent = 'System notifications are blocked. Re-enable in your browser site settings, or rely on the in-app card.';
+    } else if (Notification.permission === 'default') {
+      notifNote.textContent = 'You\'ll be asked for notification permission when needed.';
+    } else {
+      notifNote.textContent = '';
+    }
+  }
 
   // Tag manager
   renderTagManager();
@@ -3501,15 +3541,21 @@ document.getElementById('goalSlider').addEventListener('change', () => {
 document.getElementById('reminderToggle').addEventListener('click', async () => {
   const cur = !!data.settings.reminderEnabled;
   if (!cur) {
+    let denied = false;
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      try { await Notification.requestPermission(); } catch (e) {}
+      try {
+        const result = await Notification.requestPermission();
+        if (result === 'denied') denied = true;
+      } catch (e) {}
+    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      denied = true;
     }
     data.settings.reminderEnabled = true;
     save();
     renderSettings();
     renderHome();
     vibe([15, 30, 15]);
-    toast('reminder on');
+    toast(denied ? 'reminder on · in-app only' : 'reminder on');
   } else {
     data.settings.reminderEnabled = false;
     save();
