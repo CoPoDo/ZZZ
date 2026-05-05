@@ -1893,9 +1893,8 @@ function commitTap() {
     // committing a malformed multi-day entry.
     if (elapsed > 24 * 3600 * 1000) {
       const choice = confirm(
-        'This sleep session has been running for over 24 hours.\n\n' +
-        'OK — discard it (you forgot to wake earlier).\n' +
-        'Cancel — keep it open so you can adjust the bedtime in detail.'
+        'This sleep session has been running for over 24 hours — likely a forgotten "wake".\n\n' +
+        'Discard it now? (Cancel to keep it open so you can adjust the bedtime in detail first.)'
       );
       if (choice) {
         data.current = null;
