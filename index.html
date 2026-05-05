@@ -1867,6 +1867,24 @@ bigBtn.addEventListener('mouseleave', endHold);
 function commitTap() {
   vibe([20, 40, 80]);
   if (data.current) {
+    const elapsed = Date.now() - new Date(data.current.bedTime).getTime();
+    // Guard against forgotten sessions: 24+ hours is almost certainly the
+    // user forgetting to hold-to-wake. Offer a way out before silently
+    // committing a malformed multi-day entry.
+    if (elapsed > 24 * 3600 * 1000) {
+      const choice = confirm(
+        'This sleep session has been running for over 24 hours.\n\n' +
+        'OK — discard it (you forgot to wake earlier).\n' +
+        'Cancel — keep it open so you can adjust the bedtime in detail.'
+      );
+      if (choice) {
+        data.current = null;
+        save();
+        renderHome();
+        toast('session discarded');
+      }
+      return;
+    }
     const wake = new Date().toISOString();
     const entry = {
       id: uid(),
