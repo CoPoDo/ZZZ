@@ -131,6 +131,10 @@ h1 em, .grad {
   pointer-events: none;
 }
 .bigBtn:active { transform: scale(0.97); }
+.bigBtn {
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
 .bigBtn.sleeping {
   background:
     radial-gradient(circle at 30% 30%, rgba(255,255,255,0.04), transparent 50%),
