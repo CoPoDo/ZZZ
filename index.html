@@ -1719,9 +1719,11 @@ function fmtDur(ms) {
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
   const rem = m % 60;
-  // Drop the leading "0h " for short durations so things like a nap or a
-  // brief countdown read "30m" instead of "0h 30m".
+  // Trim trivial zeros: "30m" not "0h 30m", "8h" not "8h 0m". Anywhere both
+  // are non-zero we render the full "Xh Ym" form. fmtGoal still pads the
+  // settings slider value separately for fixed-width alignment.
   if (h === 0) return `${rem}m`;
+  if (rem === 0) return `${h}h`;
   return `${h}h ${rem}m`;
 }
 // Formats a signed delta in ms; collapses anything under a minute to "0m"
