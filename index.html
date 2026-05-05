@@ -1814,6 +1814,9 @@ async function backfillPlaceForEntry(e) {
 // VIEW SWITCHING
 document.querySelectorAll('nav button').forEach(b => {
   b.addEventListener('click', () => {
+    // Cancel any in-progress hold so navigating mid-hold can't silently
+    // commit a sleep/wake while the user is on another view.
+    endHold();
     const v = b.dataset.view;
     document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
     document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'view-' + v));
