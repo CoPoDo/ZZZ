@@ -1863,6 +1863,17 @@ bigBtn.addEventListener('touchend', endHold);
 bigBtn.addEventListener('touchcancel', endHold);
 bigBtn.addEventListener('mouseup', endHold);
 bigBtn.addEventListener('mouseleave', endHold);
+// Mobile: if the user drags their finger off the button without lifting,
+// match the desktop mouseleave behaviour and cancel the hold.
+bigBtn.addEventListener('touchmove', (e) => {
+  if (!holdTimer) return;
+  const t = e.touches[0];
+  if (!t) return;
+  const r = bigBtn.getBoundingClientRect();
+  if (t.clientX < r.left || t.clientX > r.right || t.clientY < r.top || t.clientY > r.bottom) {
+    endHold();
+  }
+}, { passive: true });
 
 function commitTap() {
   vibe([20, 40, 80]);
