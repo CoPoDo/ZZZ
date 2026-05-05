@@ -2070,12 +2070,22 @@ function openMorning(entry) {
 }
 function closeMorning(saveIt) {
   if (saveIt && morningEntry) {
+    // Look up by id rather than mutating morningEntry directly: another tab
+    // (cross-tab sync) or an import could have replaced the data object,
+    // leaving morningEntry as an orphan whose updates would be lost.
+    const e = data.entries.find(x => x.id === morningEntry.id);
+    if (!e) {
+      // Entry was deleted elsewhere — drop the prompt silently.
+      document.getElementById('morningModal').classList.remove('show');
+      morningEntry = null;
+      return;
+    }
     const lat = document.getElementById('latency');
-    morningEntry.latencyMin = parseInt(lat.value);
-    morningEntry.latencyEstimated = lat.dataset.est === '1';
-    morningEntry.quality = selectedQual;
-    morningEntry.tags = [...selectedTags];
-    morningEntry.note = document.getElementById('noteInput').value.trim();
+    e.latencyMin = parseInt(lat.value);
+    e.latencyEstimated = lat.dataset.est === '1';
+    e.quality = selectedQual;
+    e.tags = [...selectedTags];
+    e.note = document.getElementById('noteInput').value.trim();
     save();
     renderHome();
     vibe(20);
@@ -2086,6 +2096,7 @@ function closeMorning(saveIt) {
     checkMilestones();
   }
   document.getElementById('morningModal').classList.remove('show');
+  morningEntry = null;
 }
 
 // HISTORY
