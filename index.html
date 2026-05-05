@@ -1765,14 +1765,20 @@ async function reverseGeocode(lat, lng) {
 }
 async function captureLocationFor(record) {
   if (!data.settings || !data.settings.captureLocation) return;
+  // Pin the session via bedTime so a cross-tab sync, an import, or the user
+  // waking before the geolocation resolves doesn't leak updates onto an
+  // orphaned record (or onto a different sleep session).
+  const startBed = record.bedTime;
   try {
     const pos = await getPosition();
-    record.lat = pos.lat;
-    record.lng = pos.lng;
+    if (!data.current || data.current.bedTime !== startBed) return;
+    data.current.lat = pos.lat;
+    data.current.lng = pos.lng;
     save();
     const name = await reverseGeocode(pos.lat, pos.lng);
+    if (!data.current || data.current.bedTime !== startBed) return;
     if (name) {
-      record.place = name;
+      data.current.place = name;
       save();
     }
     if (document.getElementById('view-travel').classList.contains('active')) renderTravel();
@@ -1784,9 +1790,13 @@ async function captureLocationFor(record) {
 async function backfillPlaceForEntry(e) {
   if (e.place) return;
   if (typeof e.lat !== 'number' || typeof e.lng !== 'number') return;
+  const id = e.id;
   const name = await reverseGeocode(e.lat, e.lng);
-  if (name) {
-    e.place = name;
+  if (!name) return;
+  // Re-resolve by id — data may have been replaced while we were awaiting.
+  const cur = data.entries.find(x => x.id === id);
+  if (cur) {
+    cur.place = name;
     save();
   }
 }
