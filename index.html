@@ -3336,6 +3336,9 @@ function renderTravel() {
   });
 }
 function escapeHtml(s) {
+  // Guard null/undefined so we never accidentally render the literal
+  // string "undefined" or "null" inside the UI.
+  if (s == null) return '';
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
