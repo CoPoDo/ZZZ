@@ -1965,8 +1965,9 @@ function renderHome() {
     const wakeAt = new Date(new Date(data.current.bedTime).getTime() + goalMs + lat);
     const remaining = wakeAt.getTime() - Date.now();
     const wakeStr = wakeAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const remainStr = remaining < 60000 ? '<1m' : fmtDur(remaining);
     const goalLine = remaining > 0
-      ? `wake at <em>${wakeStr}</em> for ${fmtDur(goalMs)} · ${fmtDur(remaining)} to go`
+      ? `wake at <em>${wakeStr}</em> for ${fmtDur(goalMs)} · ${remainStr} to go`
       : `you've passed your <em>${fmtDur(goalMs)}</em> goal`;
     target.innerHTML = `
       <div class="label section-label">In bed since</div>
