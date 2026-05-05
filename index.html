@@ -2062,7 +2062,8 @@ function renderHome() {
 function updateLive() {
   if (!data.current) return;
   const ms = Date.now() - new Date(data.current.bedTime).getTime();
-  document.getElementById('liveDur').textContent = fmtDur(ms);
+  // The first minute would render as "—" otherwise (fmtDur drops sub-minute).
+  document.getElementById('liveDur').textContent = ms < 60000 ? 'just settled in' : fmtDur(ms);
 }
 
 // MORNING PROMPT
@@ -3325,6 +3326,7 @@ function openDetail(id) {
   if (id === '__current') {
     if (!data.current) return;
     const ms = Date.now() - new Date(data.current.bedTime).getTime();
+    const elapsedStr = ms < 60000 ? '<1m' : fmtDur(ms);
     const place = data.current.place || (typeof data.current.lat === 'number' ? `${data.current.lat.toFixed(2)}, ${data.current.lng.toFixed(2)}` : null);
     html = `
       <div class="detail-head">
@@ -3338,7 +3340,7 @@ function openDetail(id) {
       </div>
       <div class="detail-row">
         <div class="detail-lbl">Elapsed</div>
-        <div class="detail-val italic grad">${fmtDur(ms)}</div>
+        <div class="detail-val italic grad">${elapsedStr}</div>
       </div>
       <div class="detail-note italic">Hold the big button to wake.</div>
       <div style="margin-top:14px;">
