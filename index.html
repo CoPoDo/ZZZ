@@ -3069,12 +3069,18 @@ function checkReminderFire() {
         const latMs = avgLatency() * 60000;
         const wakeAt = new Date(Date.now() + goalMs + latMs);
         const wakeStr = wakeAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        new Notification('Zzz · time to wind down', {
+        const n = new Notification('Zzz · time to wind down', {
           body: `Sleep now → wake at ${wakeStr} for ${fmtDur(goalMs)}.`,
           icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%230a0814"/><text x="32" y="44" text-anchor="middle" font-family="serif" font-style="italic" font-size="40" fill="%23b89dff">z</text></svg>',
           tag: 'zzz-bedtime',
           silent: false,
         });
+        // Tapping the notification should bring the app to the foreground
+        // rather than just dismissing the OS-level banner.
+        n.onclick = () => {
+          try { window.focus(); } catch (e) {}
+          n.close();
+        };
       } catch (e) {}
     }
     toast('bedtime');
